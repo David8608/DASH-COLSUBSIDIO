@@ -9,7 +9,285 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
-<link rel="stylesheet" href="css/styles.css">
+<style>
+/* =========================================================================
+   styles.css — Sistema de diseño del Dashboard Operativo
+   Paleta: Azul (primario) / Verde (positivo) / Gris (neutral) / Rojo (alertas)
+   ========================================================================= */
+
+:root {
+  --blue-700: #1D4ED8;
+  --blue-600: #2563EB;
+  --blue-500: #3B82F6;
+  --blue-50:  #EFF6FF;
+  --green-600:#16A34A;
+  --green-50: #F0FDF4;
+  --red-600:  #DC2626;
+  --red-50:   #FEF2F2;
+  --amber-500:#F59E0B;
+  --amber-50: #FFFBEB;
+  --grey-900: #0F172A;
+  --grey-700: #334155;
+  --grey-500: #64748B;
+  --grey-300: #CBD5E1;
+  --grey-200: #E2E8F0;
+  --grey-100: #F1F5F9;
+  --grey-50:  #F8FAFC;
+  --white:    #FFFFFF;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 1px 2px rgba(15,23,42,.06), 0 1px 1px rgba(15,23,42,.04);
+  --shadow-md: 0 4px 16px rgba(15,23,42,.08), 0 1px 2px rgba(15,23,42,.04);
+  --shadow-lg: 0 12px 32px rgba(15,23,42,.12);
+  --topbar-h: 62px;
+  --filters-h: 56px;
+  --sidebar-w: 224px;
+  --font-ui: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: var(--font-ui);
+  background: var(--grey-50);
+  color: var(--grey-900);
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4 { margin: 0; font-weight: 700; letter-spacing: -.01em; }
+button, select, input { font-family: inherit; }
+button { cursor: pointer; }
+
+/* ================= TOPBAR ================= */
+.topbar {
+  height: var(--topbar-h);
+  display: flex; align-items: center; gap: 16px;
+  padding: 0 20px;
+  background: var(--white);
+  border-bottom: 1px solid var(--grey-200);
+  position: sticky; top: 0; z-index: 40;
+}
+.icon-btn {
+  border: none; background: transparent; color: var(--grey-700);
+  width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+  border-radius: var(--radius-sm); transition: background .15s;
+}
+.icon-btn:hover { background: var(--grey-100); }
+.topbar__brand { display: flex; align-items: center; gap: 10px; }
+.topbar__logo {
+  width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, var(--blue-600), var(--blue-700));
+  border-radius: var(--radius-sm); font-size: 18px;
+}
+.topbar__title { font-size: 15px; font-weight: 700; line-height: 1.2; }
+.topbar__subtitle { font-size: 12px; color: var(--grey-500); }
+.topbar__status {
+  display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--grey-500);
+  margin-left: 12px; padding: 6px 12px; background: var(--grey-100); border-radius: 999px;
+}
+.topbar__divider { width: 1px; height: 14px; background: var(--grey-300); }
+.topbar__updated-value { font-family: var(--font-mono); color: var(--grey-700); font-size: 12px; }
+.status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--grey-300); flex: none; }
+.status-dot.ok { background: var(--green-600); box-shadow: 0 0 0 3px var(--green-50); }
+.status-dot.loading { background: var(--amber-500); animation: pulse 1.2s infinite; }
+.status-dot.error { background: var(--red-600); box-shadow: 0 0 0 3px var(--red-50); }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+.topbar__actions { margin-left: auto; display: flex; gap: 8px; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid transparent; border-radius: var(--radius-sm);
+  padding: 8px 14px; font-size: 13px; font-weight: 600;
+  transition: transform .1s, box-shadow .15s, background .15s;
+}
+.btn:active { transform: scale(.97); }
+.btn--primary { background: var(--blue-600); color: var(--white); }
+.btn--primary:hover { background: var(--blue-700); }
+.btn--ghost { background: var(--white); color: var(--grey-700); border-color: var(--grey-200); }
+.btn--ghost:hover { background: var(--grey-100); }
+.btn--text { background: transparent; color: var(--blue-600); padding: 8px 10px; }
+.btn--text:hover { text-decoration: underline; }
+
+/* ================= FILTROS ================= */
+.filters-wrap {
+  position: sticky; top: var(--topbar-h); z-index: 30;
+  display: flex; align-items: center; gap: 10px;
+  background: var(--white); border-bottom: 1px solid var(--grey-200);
+  padding: 10px 20px; min-height: var(--filters-h);
+}
+.filters-bar { display: flex; gap: 8px; flex-wrap: wrap; flex: 1; }
+.filter-dd { position: relative; }
+.filter-dd__btn {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--grey-50); border: 1px solid var(--grey-200); color: var(--grey-700);
+  padding: 7px 10px; border-radius: var(--radius-sm); font-size: 12.5px; font-weight: 600;
+}
+.filter-dd.open .filter-dd__btn, .filter-dd__btn:hover { border-color: var(--blue-500); color: var(--blue-700); background: var(--blue-50); }
+.filter-dd__badge {
+  background: var(--blue-600); color: var(--white); font-size: 10.5px; font-weight: 700;
+  padding: 1px 6px; border-radius: 999px; font-family: var(--font-mono);
+}
+.filter-dd__panel {
+  display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 50;
+  width: 240px; background: var(--white); border: 1px solid var(--grey-200);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-lg); padding: 10px;
+}
+.filter-dd.open .filter-dd__panel { display: block; }
+.filter-dd__search {
+  width: 100%; padding: 7px 10px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm);
+  font-size: 12.5px; margin-bottom: 8px;
+}
+.filter-dd__actions { display: flex; gap: 8px; margin-bottom: 6px; }
+.filter-dd__actions button { background: none; border: none; color: var(--blue-600); font-size: 11.5px; font-weight: 700; padding: 0; }
+.filter-dd__list { max-height: 220px; overflow-y: auto; }
+.filter-dd__opt { display: flex; align-items: center; gap: 8px; padding: 5px 4px; font-size: 12.5px; border-radius: 6px; }
+.filter-dd__opt:hover { background: var(--grey-50); }
+.filter-dd__opt input { accent-color: var(--blue-600); }
+
+/* ================= LAYOUT ================= */
+.app-shell { display: flex; min-height: calc(100vh - var(--topbar-h) - var(--filters-h)); }
+.sidebar {
+  width: var(--sidebar-w); flex: none; background: var(--white); border-right: 1px solid var(--grey-200);
+  padding: 14px 10px; position: sticky; top: calc(var(--topbar-h) + var(--filters-h)); align-self: flex-start;
+  height: calc(100vh - var(--topbar-h) - var(--filters-h)); overflow-y: auto;
+  transition: width .2s, transform .2s;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-sm);
+  font-size: 13.5px; font-weight: 600; color: var(--grey-700); margin-bottom: 2px; position: relative;
+}
+.nav-item span:first-child { font-size: 16px; width: 20px; text-align: center; }
+.nav-item:hover { background: var(--grey-50); }
+.nav-item.active { background: var(--blue-50); color: var(--blue-700); }
+.nav-badge {
+  margin-left: auto; background: var(--red-600); color: var(--white); font-size: 10.5px; font-weight: 700;
+  padding: 1px 7px; border-radius: 999px; display: none; align-items: center;
+}
+body.sidebar-collapsed .sidebar { width: 60px; }
+body.sidebar-collapsed .nav-item span:not(:first-child) { display: none; }
+body.sidebar-collapsed .nav-item { justify-content: center; }
+
+.content { flex: 1; padding: 20px 24px 60px; min-width: 0; }
+.section { display: none; animation: fadein .25s ease; }
+.section.active { display: block; }
+@keyframes fadein { from { opacity: 0; transform: translateY(4px);} to { opacity: 1; transform: translateY(0);} }
+.section-title { font-size: 20px; margin-bottom: 16px; }
+
+/* ================= KPI ================= */
+.kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin-bottom: 22px; }
+.kpi-card {
+  background: var(--white); border: 1px solid var(--grey-200); border-radius: var(--radius-md);
+  padding: 14px 16px; box-shadow: var(--shadow-sm); transition: box-shadow .15s, transform .15s;
+}
+.kpi-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.kpi-card__top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.kpi-icon { font-size: 16px; }
+.kpi-dot { width: 9px; height: 9px; border-radius: 50%; }
+.kpi-dot--good { background: var(--green-600); }
+.kpi-dot--warn { background: var(--amber-500); }
+.kpi-dot--bad { background: var(--red-600); }
+.kpi-dot--neutral { background: var(--grey-300); }
+.kpi-value { font-family: var(--font-mono); font-size: 22px; font-weight: 700; color: var(--grey-900); line-height: 1.1; }
+.kpi-label { font-size: 12px; color: var(--grey-500); margin-top: 4px; font-weight: 600; }
+.kpi-var { display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; font-weight: 700; margin-top: 6px; }
+.kpi-var--good { color: var(--green-600); }
+.kpi-var--bad { color: var(--red-600); }
+
+/* ================= CARDS / CHARTS ================= */
+.chart-grid { display: grid; gap: 16px; margin-bottom: 20px; }
+.chart-grid--2 { grid-template-columns: repeat(2, 1fr); }
+.chart-grid--1 { grid-template-columns: 1fr; }
+.card {
+  background: var(--white); border: 1px solid var(--grey-200); border-radius: var(--radius-lg);
+  padding: 16px 18px; box-shadow: var(--shadow-sm);
+}
+.card h3 { font-size: 13.5px; color: var(--grey-700); margin-bottom: 12px; font-weight: 700; }
+.card--full { grid-column: 1 / -1; }
+.chart-box { position: relative; height: 260px; }
+.chart-box--tall { height: 520px; }
+
+/* ================= MAPA ================= */
+.map-toolbar { display: flex; gap: 18px; margin-bottom: 12px; font-size: 12.5px; color: var(--grey-700); font-weight: 600; }
+.map-toolbar select { padding: 6px 8px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); font-size: 12.5px; }
+.map-box { height: 560px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--grey-200); }
+.map-popup h4 { margin-bottom: 6px; font-size: 13px; }
+.map-popup table { font-size: 12px; border-collapse: collapse; }
+.map-popup td { padding: 2px 6px 2px 0; color: var(--grey-700); }
+
+/* ================= ALERTAS ================= */
+.alerts-list { display: flex; flex-direction: column; gap: 10px; }
+.alert-item {
+  display: flex; gap: 12px; align-items: flex-start; background: var(--white);
+  border: 1px solid var(--grey-200); border-left-width: 4px; border-radius: var(--radius-md);
+  padding: 12px 14px; box-shadow: var(--shadow-sm);
+}
+.alert-item--warn { border-left-color: var(--amber-500); }
+.alert-item--critical { border-left-color: var(--red-600); }
+.alert-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex: none; }
+.alert-item--warn .alert-dot { background: var(--amber-500); }
+.alert-item--critical .alert-dot { background: var(--red-600); }
+.alert-title { font-weight: 700; font-size: 13.5px; }
+.alert-detail { font-size: 12.5px; color: var(--grey-500); margin-top: 2px; }
+
+/* ================= TABLA ================= */
+.table-card { padding: 0; overflow: hidden; }
+.table-toolbar { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--grey-200); gap: 12px; }
+.table-toolbar input {
+  flex: 1; max-width: 320px; padding: 8px 12px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); font-size: 13px;
+}
+.table-toolbar__actions { display: flex; gap: 8px; }
+.table-scroll { overflow-x: auto; max-height: 560px; }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+thead th {
+  position: sticky; top: 0; background: var(--grey-50); text-align: left; padding: 10px 14px;
+  font-weight: 700; color: var(--grey-700); border-bottom: 1px solid var(--grey-200); white-space: nowrap; cursor: pointer;
+}
+thead th:hover { color: var(--blue-700); }
+tbody td { padding: 9px 14px; border-bottom: 1px solid var(--grey-100); color: var(--grey-700); white-space: nowrap; }
+tbody tr:hover { background: var(--grey-50); }
+.empty-state { text-align: center; color: var(--grey-500); padding: 32px !important; }
+.table-footer { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; font-size: 12.5px; color: var(--grey-500); }
+.pagination { display: flex; gap: 8px; }
+.pagination button { border: 1px solid var(--grey-200); background: var(--white); padding: 6px 12px; border-radius: var(--radius-sm); font-size: 12.5px; font-weight: 600; color: var(--grey-700); }
+.pagination button:disabled { opacity: .4; cursor: not-allowed; }
+.pagination button:not(:disabled):hover { background: var(--grey-100); }
+
+/* ================= TOAST ================= */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: var(--grey-900); color: var(--white); padding: 10px 18px; border-radius: var(--radius-md);
+  font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s; z-index: 100;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ================= RESPONSIVE ================= */
+@media (max-width: 980px) {
+  .chart-grid--2 { grid-template-columns: 1fr; }
+  .topbar__status { display: none; }
+  .sidebar { position: fixed; left: 0; top: calc(var(--topbar-h) + var(--filters-h)); z-index: 35; box-shadow: var(--shadow-lg); }
+  body:not(.sidebar-collapsed) .sidebar { transform: translateX(0); }
+  body.sidebar-collapsed .sidebar { transform: translateX(-100%); width: var(--sidebar-w); }
+  body.sidebar-collapsed .nav-item span:not(:first-child) { display: inline; }
+}
+@media (max-width: 560px) {
+  .topbar__subtitle { display: none; }
+  .btn span, .btn { font-size: 12px; }
+  .kpi-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+}
+
+/* ================= IMPRESIÓN (Exportar PDF) ================= */
+@media print {
+  .topbar__actions, .filters-wrap, .sidebar, #btnMenuToggle, .table-toolbar__actions, .pagination { display: none !important; }
+  .app-shell { display: block; }
+  .content { padding: 0; }
+  .section { display: block !important; page-break-after: always; }
+  .card, .kpi-card { box-shadow: none; border: 1px solid #ccc; }
+}
+
+</style>
 </head>
 <body>
 
@@ -206,11 +484,1449 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-<script src="js/utils.js"></script>
-<script src="js/data.js"></script>
-<script src="js/filters.js"></script>
-<script src="js/charts.js"></script>
-<script src="js/map.js"></script>
-<script src="js/app.js"></script>
+<script>
+/* =========================================================================
+   utils.js — Funciones utilitarias compartidas por todo el dashboard
+   ========================================================================= */
+
+const Utils = (() => {
+
+  /* ---------- Normalización de texto ---------- */
+  function normalize(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // quita tildes
+      .trim()
+      .toUpperCase();
+  }
+
+  function slugify(str) {
+    return normalize(str).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  }
+
+  /* ---------- Letra de columna -> índice base 0 (A=0, Z=25, AA=26, AM=38, AN=39...) ---------- */
+  function colLetterToIndex(letter) {
+    let result = 0;
+    const s = letter.toUpperCase();
+    for (let i = 0; i < s.length; i++) {
+      result = result * 26 + (s.charCodeAt(i) - 64);
+    }
+    return result - 1;
+  }
+
+  /* ---------- Parseo numérico tolerante (miles con punto, decimales con coma, %, etc.) ---------- */
+  function parseNumber(val) {
+    if (val === null || val === undefined || val === '') return null;
+    if (typeof val === 'number') return isFinite(val) ? val : null;
+    let s = String(val).trim();
+    if (s === '' || s === '-' || /^n\/?a$/i.test(s)) return null;
+    s = s.replace(/%/g, '').replace(/\s/g, '');
+    // Formato latino: 1.234,56  -> 1234.56
+    if (/,\d{1,2}$/.test(s) && s.includes('.')) {
+      s = s.replace(/\./g, '').replace(',', '.');
+    } else if (/,\d{1,2}$/.test(s)) {
+      s = s.replace(',', '.');
+    } else {
+      s = s.replace(/,/g, '');
+    }
+    const n = parseFloat(s);
+    return isFinite(n) ? n : null;
+  }
+
+  /* ---------- Parseo de tiempos (minutos). Soporta números, "HH:MM:SS", "HH:MM", horas decimales de Sheets ---------- */
+  function parseTimeToMinutes(val) {
+    if (val === null || val === undefined || val === '') return null;
+    if (typeof val === 'number') {
+      // Si viene como fracción de día (serial de Google Sheets para formato hora)
+      if (val > 0 && val < 2) return val * 24 * 60;
+      return val; // ya viene en minutos
+    }
+    const s = String(val).trim();
+    if (s === '') return null;
+    if (s.includes(':')) {
+      const parts = s.split(':').map(p => parseFloat(p.replace(',', '.')) || 0);
+      if (parts.length === 3) return parts[0] * 60 + parts[1] + parts[2] / 60;
+      if (parts.length === 2) return parts[0] * 60 + parts[1];
+    }
+    return parseNumber(s);
+  }
+
+  function minutesToHHMM(mins) {
+    if (mins === null || mins === undefined || isNaN(mins)) return '—';
+    const sign = mins < 0 ? '-' : '';
+    mins = Math.abs(mins);
+    const h = Math.floor(mins / 60);
+    const m = Math.round(mins % 60);
+    return `${sign}${h}h ${String(m).padStart(2, '0')}m`;
+  }
+
+  /* ---------- Parseo de fechas robusto ---------- */
+  function parseDate(val) {
+    if (val === null || val === undefined || val === '') return null;
+    if (val instanceof Date) return isNaN(val) ? null : val;
+    if (typeof val === 'number') {
+      // Serial de fecha de Google Sheets/Excel (epoch 1899-12-30)
+      const epoch = new Date(Date.UTC(1899, 11, 30));
+      return new Date(epoch.getTime() + val * 86400000);
+    }
+    const s = String(val).trim();
+    if (s === '') return null;
+    // dd/mm/yyyy o dd-mm-yyyy
+    let m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+    if (m) {
+      let [, d, mo, y] = m;
+      if (y.length === 2) y = '20' + y;
+      const dt = new Date(Number(y), Number(mo) - 1, Number(d));
+      return isNaN(dt) ? null : dt;
+    }
+    // yyyy-mm-dd
+    m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if (m) {
+      const [, y, mo, d] = m;
+      const dt = new Date(Number(y), Number(mo) - 1, Number(d));
+      return isNaN(dt) ? null : dt;
+    }
+    const dt = new Date(s);
+    return isNaN(dt) ? null : dt;
+  }
+
+  const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  const MESES_ABR = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+
+  function formatDateTime(d) {
+    if (!d) return '—';
+    const pad = n => String(n).padStart(2, '0');
+    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function formatNumber(n, decimals = 0) {
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    return Number(n).toLocaleString('es-CO', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  }
+
+  function formatPct(n, decimals = 1) {
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    return `${Number(n).toLocaleString('es-CO', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}%`;
+  }
+
+  function formatCurrency(n) {
+    if (n === null || n === undefined || isNaN(n)) return '—';
+    return Number(n).toLocaleString('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 });
+  }
+
+  /* ---------- Semáforo / variación ---------- */
+  function semaforo(value, thresholds) {
+    // thresholds: {good: x, warn: y} donde value >= good => verde, >= warn => amarillo, si no => rojo
+    if (value === null || value === undefined || isNaN(value)) return 'neutral';
+    if (value >= thresholds.good) return 'good';
+    if (value >= thresholds.warn) return 'warn';
+    return 'bad';
+  }
+
+  function variation(current, previous) {
+    if (previous === null || previous === undefined || previous === 0 || previous === null) return null;
+    if (current === null || current === undefined) return null;
+    return ((current - previous) / Math.abs(previous)) * 100;
+  }
+
+  /* ---------- Debounce ---------- */
+  function debounce(fn, wait = 150) {
+    let t;
+    return (...args) => {
+      clearTimeout(t);
+      t = setTimeout(() => fn(...args), wait);
+    };
+  }
+
+  /* ---------- Paleta de colores para gráficos ---------- */
+  const PALETTE = ['#2563EB', '#16A34A', '#0EA5E9', '#F59E0B', '#8B5CF6', '#EC4899', '#64748B', '#DC2626', '#14B8A6', '#F97316'];
+  function colorAt(i) { return PALETTE[i % PALETTE.length]; }
+
+  /* ---------- Exportar a CSV ---------- */
+  function exportCSV(filename, headers, rows) {
+    const esc = v => {
+      if (v === null || v === undefined) return '';
+      const s = String(v).replace(/"/g, '""');
+      return /[",\n;]/.test(s) ? `"${s}"` : s;
+    };
+    const lines = [headers.map(esc).join(';')];
+    rows.forEach(r => lines.push(r.map(esc).join(';')));
+    const blob = new Blob(['\uFEFF' + lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    downloadBlob(blob, filename);
+  }
+
+  /* ---------- Exportar a Excel (HTML table -> .xls, sin librerías) ---------- */
+  function exportExcel(filename, headers, rows) {
+    let html = '<table><thead><tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr></thead><tbody>';
+    rows.forEach(r => {
+      html += '<tr>' + r.map(c => `<td>${c === null || c === undefined ? '' : c}</td>`).join('') + '</tr>';
+    });
+    html += '</tbody></table>';
+    const template = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+    <head><meta charset="utf-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>
+    <x:Name>Datos</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet>
+    </x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body>${html}</body></html>`;
+    const blob = new Blob([template], { type: 'application/vnd.ms-excel' });
+    downloadBlob(blob, filename);
+  }
+
+  function downloadBlob(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
+  /* ---------- LocalStorage seguro (para caché de datos) ---------- */
+  function lsGet(key) {
+    try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : null; } catch (e) { return null; }
+  }
+  function lsSet(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) { /* cuota excedida, ignorar */ }
+  }
+
+  return {
+    normalize, slugify, colLetterToIndex, parseNumber, parseTimeToMinutes, minutesToHHMM,
+    parseDate, MESES, MESES_ABR, formatDateTime, formatNumber, formatPct, formatCurrency,
+    semaforo, variation, debounce, PALETTE, colorAt, exportCSV, exportExcel, downloadBlob,
+    lsGet, lsSet
+  };
+})();
+
+</script>
+<script>
+/* =========================================================================
+   data.js — Configuración, ingestión y normalización de datos
+   Fuente: Google Sheets publicado en la web (pub?output=csv)
+   ========================================================================= */
+
+const DataLayer = (() => {
+
+  /* =========================================================================
+     CONFIGURACIÓN — EDITAR AQUÍ SI ES NECESARIO
+     El "publish token" (2PACX-...) se toma de la URL que compartiste.
+     Cada pestaña publicada tiene un GID propio. Para obtenerlo:
+       1. Abre el enlace /pubhtml del Sheet en el navegador.
+       2. Haz clic en la pestaña deseada (Hoja 1, Hoja 2, Hoja 3, Percápita).
+       3. Mira la URL: cambia a ...#gid=XXXXXXXXX  -> ese número es el GID.
+     Si dejas gid en null, el dashboard intenta auto-detectarlo leyendo el
+     propio /pubhtml (mejor esfuerzo); si falla, se pedirá configurarlo aquí.
+     ========================================================================= */
+  const CONFIG = {
+    PUBLISH_TOKEN: '2PACX-1vTHQGXeJqcGN8E1WQd-s6Vh5k59CZuEgBX-FO6IUGGwG91c26pquxpBO9iRbdXxPQ',
+    SHEETS: {
+      hoja1:     { label: 'Hoja 1 (Ene-May)', match: /^HOJA\s*1$/i, gid: null },
+      hoja2:     { label: 'Hoja 2 (Jun-Oct)', match: /^HOJA\s*2$/i, gid: null },
+      hoja3:     { label: 'Hoja 3 (Nov-Dic)', match: /^HOJA\s*3$/i, gid: null },
+      percapita: { label: 'Percápita', match: /PERC.?PITA/i, gid: null }
+    },
+    EXCLUDE_SHEET: /VARIABLES/i,
+    REFRESH_INTERVAL_MS: 5 * 60 * 1000, // 5 minutos
+    SLA_META_DEFAULT: 60 // minutos, usado solo si la hoja no trae columna de meta SLA
+  };
+
+  function csvUrl(gid) {
+    return `https://docs.google.com/spreadsheets/d/e/${CONFIG.PUBLISH_TOKEN}/pub?gid=${gid}&single=true&output=csv`;
+  }
+  function pubhtmlUrl() {
+    return `https://docs.google.com/spreadsheets/d/e/${CONFIG.PUBLISH_TOKEN}/pubhtml`;
+  }
+
+  let state = {
+    rawRows: [],        // filas unificadas Hoja1+2+3
+    percapitaRows: [],  // filas hoja Percápita
+    lastUpdated: null,
+    gids: { hoja1: null, hoja2: null, hoja3: null, percapita: null },
+    ready: false,
+    error: null
+  };
+
+  /* ---------- Auto-detección de GIDs desde el pubhtml publicado ---------- */
+  async function autoDetectGids() {
+    try {
+      const res = await fetch(pubhtmlUrl(), { cache: 'no-store' });
+      const html = await res.text();
+      const found = {};
+      // Patrón típico de Google en la barra de pestañas del publish-to-web
+      const re = /name:\s*"([^"]+)"\s*,\s*index:\s*\d+\s*,\s*sheetId:\s*"?(\d+)"?/g;
+      let m;
+      while ((m = re.exec(html)) !== null) found[m[1]] = m[2];
+      // Patrón alterno: <li id="sheet-button-N" ...>NOMBRE</li> con gid embebido cerca
+      const re2 = /<li id="sheet-button-(\d+)"[^>]*name="([^"]+)"/g;
+      while ((m = re2.exec(html)) !== null) if (!found[m[2]]) found[m[2]] = m[1];
+
+      Object.keys(CONFIG.SHEETS).forEach(key => {
+        if (CONFIG.SHEETS[key].gid !== null) { state.gids[key] = CONFIG.SHEETS[key].gid; return; }
+        const entryName = Object.keys(found).find(n => CONFIG.SHEETS[key].match.test(n));
+        if (entryName) state.gids[key] = found[entryName];
+      });
+    } catch (e) {
+      console.warn('Auto-detección de GIDs falló, se usará configuración manual.', e);
+    }
+    return state.gids;
+  }
+
+  /* ---------- Descarga y parseo de una hoja (CSV) ---------- */
+  function fetchSheetCSV(gid) {
+    return new Promise((resolve, reject) => {
+      if (!gid && gid !== 0) return resolve({ meta: {}, data: [] });
+      Papa.parse(csvUrl(gid), {
+        download: true,
+        header: true,
+        skipEmptyLines: true,
+        transformHeader: h => h.trim(),
+        complete: results => resolve(results),
+        error: err => reject(err)
+      });
+    });
+  }
+
+  /* ---------- Mapeo flexible de columnas ---------- */
+  const FIELD_CANDIDATES = {
+    FECHA: ['FECHA', 'FECHA SERVICIO', 'FECHA DE SERVICIO', 'FECHA SOLICITUD', 'FECHA ASIGNACION'],
+    ANIO: ['ANO', 'ANIO'],
+    MES: ['MES'],
+    TIPO_CANAL: ['TIPO CANAL', 'TIPO DE CANAL'],
+    CANAL: ['CANAL'],
+    CIUDAD: ['CIUDAD'],
+    MUNICIPIO: ['MUNICIPIO'],
+    FARMACIA: ['FARMACIA', 'PUNTO', 'SEDE', 'DROGUERIA'],
+    CLIENTE: ['CLIENTE'],
+    COORDINADOR: ['COORDINADOR', 'COORDINADOR OPERATIVO', 'COORDINADOR OPERACIONES'],
+    ESTADO: ['ESTADO', 'ESTADO SERVICIO', 'ESTADO DEL SERVICIO', 'RESULTADO'],
+    TIPO_SERVICIO: ['TIPO SERVICIO', 'TIPO DE SERVICIO'],
+    COD_ESPECIALIDAD: ['COD ESPECIALIDAD', 'CODIGO ESPECIALIDAD', 'COD. ESPECIALIDAD', 'ESPECIALIDAD'],
+    VALOR: ['VALOR SERVICIO', 'VALOR', 'TICKET']
+  };
+  // Fallback por letra de columna explícitamente indicada por el usuario
+  const LETTER_FALLBACK = {
+    TIPO_SERVICIO: 'X',
+    COD_ESPECIALIDAD: 'Z',
+    TIEMPO_REAL: 'AM',
+    TIEMPO_SLA: 'AN'
+  };
+
+  function buildHeaderIndex(headers) {
+    const idx = {};
+    headers.forEach((h, i) => { idx[Utils.normalize(h)] = i; });
+    return idx;
+  }
+
+  function resolveField(field, headers, headerIdxMap) {
+    const candidates = FIELD_CANDIDATES[field] || [];
+    for (const c of candidates) {
+      const key = Utils.normalize(c);
+      if (key in headerIdxMap) return headers[headerIdxMap[key]];
+    }
+    if (LETTER_FALLBACK[field]) {
+      const i = Utils.colLetterToIndex(LETTER_FALLBACK[field]);
+      if (i >= 0 && i < headers.length) return headers[i];
+    }
+    return null;
+  }
+
+  function buildFieldMap(headers) {
+    const headerIdxMap = buildHeaderIndex(headers);
+    const map = {};
+    Object.keys(FIELD_CANDIDATES).forEach(f => { map[f] = resolveField(f, headers, headerIdxMap); });
+    map.TIEMPO_REAL = resolveField('TIEMPO_REAL', headers, headerIdxMap) || headers[Utils.colLetterToIndex(LETTER_FALLBACK.TIEMPO_REAL)] || null;
+    map.TIEMPO_SLA = resolveField('TIEMPO_SLA', headers, headerIdxMap) || headers[Utils.colLetterToIndex(LETTER_FALLBACK.TIEMPO_SLA)] || null;
+    return map;
+  }
+
+  function classifyEstado(estadoRaw) {
+    const s = Utils.normalize(estadoRaw);
+    if (!s) return 'SIN_DATO';
+    if (s.includes('CANCEL')) return 'CANCELADO';
+    if (s.includes('NOVEDAD')) return 'NOVEDAD';
+    if (s.includes('EFECTIV') || s.includes('ENTREG') || s.includes('COMPLET') || s.includes('EXITOS') || s.includes('FINALIZ')) return 'EFECTIVO';
+    return 'OTRO';
+  }
+
+  /* ---------- Normaliza filas crudas de una hoja al esquema unificado ---------- */
+  function normalizeRows(parsed, sheetTag) {
+    if (!parsed || !parsed.data || !parsed.data.length) return [];
+    const headers = parsed.meta && parsed.meta.fields ? parsed.meta.fields : Object.keys(parsed.data[0]);
+    const map = buildFieldMap(headers);
+
+    return parsed.data.map(row => {
+      const fecha = map.FECHA ? Utils.parseDate(row[map.FECHA]) : null;
+      const anio = map.ANIO ? Utils.parseNumber(row[map.ANIO]) : (fecha ? fecha.getFullYear() : null);
+      const mesNum = map.MES ? (Utils.parseNumber(row[map.MES]) || monthNameToNum(row[map.MES])) : (fecha ? fecha.getMonth() + 1 : null);
+      const estadoRaw = map.ESTADO ? row[map.ESTADO] : '';
+      const tReal = map.TIEMPO_REAL ? Utils.parseTimeToMinutes(row[map.TIEMPO_REAL]) : null;
+      const tSla = map.TIEMPO_SLA ? Utils.parseTimeToMinutes(row[map.TIEMPO_SLA]) : null;
+
+      return {
+        _sheet: sheetTag,
+        fecha,
+        anio: anio || null,
+        mes: mesNum || null,
+        tipoCanal: map.TIPO_CANAL ? (row[map.TIPO_CANAL] || 'Sin dato').trim() : 'Sin dato',
+        canal: map.CANAL ? (row[map.CANAL] || 'Sin dato').trim() : 'Sin dato',
+        tipoServicio: map.TIPO_SERVICIO ? (row[map.TIPO_SERVICIO] || 'Sin dato').trim() : 'Sin dato',
+        codEspecialidad: map.COD_ESPECIALIDAD ? (row[map.COD_ESPECIALIDAD] || 'Sin dato').toString().trim() : 'Sin dato',
+        ciudad: map.CIUDAD ? (row[map.CIUDAD] || 'Sin dato').trim() : 'Sin dato',
+        municipio: map.MUNICIPIO ? (row[map.MUNICIPIO] || 'Sin dato').trim() : 'Sin dato',
+        farmacia: map.FARMACIA ? (row[map.FARMACIA] || 'Sin dato').trim() : 'Sin dato',
+        cliente: map.CLIENTE ? (row[map.CLIENTE] || 'Sin dato').trim() : 'Sin dato',
+        coordinador: map.COORDINADOR ? (row[map.COORDINADOR] || 'Sin dato').trim() : 'Sin dato',
+        estado: classifyEstado(estadoRaw),
+        estadoRaw: estadoRaw || '',
+        tiempoReal: tReal,
+        tiempoSla: (tSla === null || tSla === undefined) ? CONFIG.SLA_META_DEFAULT : tSla,
+        dentroSla: (tReal !== null && tReal !== undefined) ? (tReal <= ((tSla === null || tSla === undefined) ? CONFIG.SLA_META_DEFAULT : tSla)) : null,
+        valor: map.VALOR ? Utils.parseNumber(row[map.VALOR]) : null
+      };
+    }).filter(r => r.ciudad !== 'Sin dato' || r.fecha || r.estado !== 'SIN_DATO'); // descarta filas totalmente vacías
+  }
+
+  function monthNameToNum(name) {
+    if (!name) return null;
+    const n = Utils.normalize(name);
+    const idx = Utils.MESES.findIndex(m => Utils.normalize(m) === n || Utils.normalize(m).startsWith(n.slice(0, 3)));
+    return idx >= 0 ? idx + 1 : null;
+  }
+
+  /* ---------- Percápita ---------- */
+  const PERCAPITA_CANDIDATES = {
+    FECHA: ['FECHA', 'MES', 'PERIODO'],
+    CIUDAD: ['CIUDAD'],
+    FARMACIA: ['FARMACIA', 'PUNTO', 'SEDE'],
+    VALOR: ['PERCAPITA', 'PER CAPITA', 'VALOR PERCAPITA', 'VALOR']
+  };
+  function normalizePercapita(parsed) {
+    if (!parsed || !parsed.data || !parsed.data.length) return [];
+    const headers = parsed.meta && parsed.meta.fields ? parsed.meta.fields : Object.keys(parsed.data[0]);
+    const headerIdxMap = buildHeaderIndex(headers);
+    const map = {};
+    Object.keys(PERCAPITA_CANDIDATES).forEach(f => {
+      for (const c of PERCAPITA_CANDIDATES[f]) {
+        const key = Utils.normalize(c);
+        if (key in headerIdxMap) { map[f] = headers[headerIdxMap[key]]; break; }
+      }
+    });
+    return parsed.data.map(row => {
+      const fechaRaw = map.FECHA ? row[map.FECHA] : null;
+      const fecha = Utils.parseDate(fechaRaw);
+      const mes = fecha ? fecha.getMonth() + 1 : monthNameToNum(fechaRaw);
+      const anio = fecha ? fecha.getFullYear() : null;
+      return {
+        fecha, mes, anio,
+        ciudad: map.CIUDAD ? (row[map.CIUDAD] || 'Sin dato').trim() : 'Sin dato',
+        farmacia: map.FARMACIA ? (row[map.FARMACIA] || 'Sin dato').trim() : 'Sin dato',
+        valor: map.VALOR ? Utils.parseNumber(row[map.VALOR]) : null
+      };
+    }).filter(r => r.valor !== null);
+  }
+
+  /* ---------- Carga completa ---------- */
+  async function loadAll() {
+    await autoDetectGids();
+    const [h1, h2, h3, pc] = await Promise.all([
+      fetchSheetCSV(state.gids.hoja1).catch(() => ({ data: [] })),
+      fetchSheetCSV(state.gids.hoja2).catch(() => ({ data: [] })),
+      fetchSheetCSV(state.gids.hoja3).catch(() => ({ data: [] })),
+      fetchSheetCSV(state.gids.percapita).catch(() => ({ data: [] }))
+    ]);
+
+    const rows = [
+      ...normalizeRows(h1, 'hoja1'),
+      ...normalizeRows(h2, 'hoja2'),
+      ...normalizeRows(h3, 'hoja3')
+    ];
+
+    state.rawRows = rows;
+    state.percapitaRows = normalizePercapita(pc);
+    state.lastUpdated = new Date();
+    state.ready = true;
+    state.error = (rows.length === 0) ? 'NO_DATA' : null;
+
+    Utils.lsSet('dashboard_cache_v1', { rows: state.rawRows, percapita: state.percapitaRows, ts: state.lastUpdated });
+    return state;
+  }
+
+  function loadFromCacheIfAny() {
+    const cached = Utils.lsGet('dashboard_cache_v1');
+    if (cached && cached.rows && cached.rows.length) {
+      state.rawRows = cached.rows.map(r => ({ ...r, fecha: r.fecha ? new Date(r.fecha) : null }));
+      state.percapitaRows = (cached.percapita || []).map(r => ({ ...r, fecha: r.fecha ? new Date(r.fecha) : null }));
+      state.lastUpdated = new Date(cached.ts);
+      state.ready = true;
+      return true;
+    }
+    return false;
+  }
+
+  function getState() { return state; }
+
+  function startAutoRefresh(callback) {
+    setInterval(async () => {
+      try { await loadAll(); callback(state); } catch (e) { console.error('Error en auto-refresh', e); }
+    }, CONFIG.REFRESH_INTERVAL_MS);
+  }
+
+  return { CONFIG, loadAll, loadFromCacheIfAny, getState, startAutoRefresh, csvUrl };
+})();
+
+</script>
+<script>
+/* =========================================================================
+   filters.js — Filtros dinámicos, reactivos (sin botón "Aplicar")
+   ========================================================================= */
+
+const FiltersModule = (() => {
+
+  const FIELDS = [
+    { key: 'anio', label: 'Año', accessor: r => r.anio },
+    { key: 'mes', label: 'Mes', accessor: r => r.mes, display: v => Utils.MESES[v - 1] || v, sortNumeric: true },
+    { key: 'tipoCanal', label: 'Tipo Canal', accessor: r => r.tipoCanal },
+    { key: 'canal', label: 'Canal', accessor: r => r.canal },
+    { key: 'tipoServicio', label: 'Tipo Servicio', accessor: r => r.tipoServicio },
+    { key: 'codEspecialidad', label: 'Cod. Especialidad', accessor: r => r.codEspecialidad },
+    { key: 'ciudad', label: 'Ciudad', accessor: r => r.ciudad },
+    { key: 'municipio', label: 'Municipio', accessor: r => r.municipio },
+    { key: 'farmacia', label: 'Farmacia', accessor: r => r.farmacia },
+    { key: 'cliente', label: 'Cliente', accessor: r => r.cliente },
+    { key: 'coordinador', label: 'Coordinador', accessor: r => r.coordinador }
+  ];
+
+  let activeFilters = {};   // key -> Set de valores seleccionados (vacío = todos)
+  let allRows = [];
+  let onChangeCb = () => {};
+  let container = null;
+
+  function init(rows, containerEl, onChange) {
+    allRows = rows;
+    container = containerEl;
+    onChangeCb = onChange || (() => {});
+    FIELDS.forEach(f => { activeFilters[f.key] = new Set(); });
+    render();
+  }
+
+  function updateData(rows) {
+    allRows = rows;
+    render(true);
+  }
+
+  function uniqueValues(field, rowsSubset) {
+    const set = new Set();
+    rowsSubset.forEach(r => {
+      const v = field.accessor(r);
+      if (v !== null && v !== undefined && v !== '' && v !== 'Sin dato') set.add(v);
+    });
+    let arr = Array.from(set);
+    arr.sort((a, b) => field.sortNumeric ? (a - b) : String(a).localeCompare(String(b), 'es'));
+    return arr;
+  }
+
+  function render(preserveOpen) {
+    container.innerHTML = '';
+    const currentlyFiltered = applyFilters(allRows, null); // para opciones "cascada" básicas
+    FIELDS.forEach(field => {
+      const options = uniqueValues(field, currentlyFiltered.length ? currentlyFiltered : allRows);
+      container.appendChild(buildDropdown(field, options));
+    });
+  }
+
+  function buildDropdown(field, options) {
+    const wrap = document.createElement('div');
+    wrap.className = 'filter-dd';
+    wrap.dataset.key = field.key;
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'filter-dd__btn';
+    const count = activeFilters[field.key].size;
+    btn.innerHTML = `<span>${field.label}</span>${count ? `<span class="filter-dd__badge">${count}</span>` : ''}<svg width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.6" fill="none"/></svg>`;
+
+    const panel = document.createElement('div');
+    panel.className = 'filter-dd__panel';
+
+    const search = document.createElement('input');
+    search.type = 'text';
+    search.placeholder = 'Buscar...';
+    search.className = 'filter-dd__search';
+    panel.appendChild(search);
+
+    const actions = document.createElement('div');
+    actions.className = 'filter-dd__actions';
+    actions.innerHTML = `<button type="button" data-act="all">Todos</button><button type="button" data-act="none">Ninguno</button>`;
+    panel.appendChild(actions);
+
+    const list = document.createElement('div');
+    list.className = 'filter-dd__list';
+
+    function renderList(filterText) {
+      list.innerHTML = '';
+      const norm = Utils.normalize(filterText || '');
+      options.filter(o => !norm || Utils.normalize(String(field.display ? field.display(o) : o)).includes(norm))
+        .forEach(o => {
+          const id = `f-${field.key}-${Utils.slugify(String(o))}`;
+          const row = document.createElement('label');
+          row.className = 'filter-dd__opt';
+          const checked = activeFilters[field.key].has(o);
+          row.innerHTML = `<input type="checkbox" id="${id}" ${checked ? 'checked' : ''}><span>${field.display ? field.display(o) : o}</span>`;
+          row.querySelector('input').addEventListener('change', e => {
+            if (e.target.checked) activeFilters[field.key].add(o);
+            else activeFilters[field.key].delete(o);
+            refreshBadge(field.key);
+            onChangeCb(getActiveFilters());
+          });
+          list.appendChild(row);
+        });
+    }
+    renderList('');
+    search.addEventListener('input', () => renderList(search.value));
+    actions.querySelectorAll('button').forEach(b => {
+      b.addEventListener('click', () => {
+        if (b.dataset.act === 'all') options.forEach(o => activeFilters[field.key].add(o));
+        else activeFilters[field.key].clear();
+        renderList(search.value);
+        refreshBadge(field.key);
+        onChangeCb(getActiveFilters());
+      });
+    });
+
+    panel.appendChild(list);
+    wrap.appendChild(btn);
+    wrap.appendChild(panel);
+
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = wrap.classList.contains('open');
+      container.querySelectorAll('.filter-dd.open').forEach(d => d.classList.remove('open'));
+      if (!isOpen) wrap.classList.add('open');
+    });
+
+    return wrap;
+  }
+
+  function refreshBadge(key) {
+    const wrap = container.querySelector(`.filter-dd[data-key="${key}"]`);
+    if (!wrap) return;
+    const btn = wrap.querySelector('.filter-dd__btn');
+    const field = FIELDS.find(f => f.key === key);
+    const count = activeFilters[key].size;
+    btn.innerHTML = `<span>${field.label}</span>${count ? `<span class="filter-dd__badge">${count}</span>` : ''}<svg width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" stroke="currentColor" stroke-width="1.6" fill="none"/></svg>`;
+  }
+
+  document.addEventListener('click', () => {
+    if (container) container.querySelectorAll('.filter-dd.open').forEach(d => d.classList.remove('open'));
+  });
+
+  function getActiveFilters() {
+    const out = {};
+    Object.keys(activeFilters).forEach(k => { if (activeFilters[k].size) out[k] = activeFilters[k]; });
+    return out;
+  }
+
+  function applyFilters(rows, excludeKey) {
+    const keys = Object.keys(activeFilters).filter(k => activeFilters[k].size && k !== excludeKey);
+    if (!keys.length) return rows;
+    return rows.filter(r => keys.every(k => {
+      const field = FIELDS.find(f => f.key === k);
+      return activeFilters[k].has(field.accessor(r));
+    }));
+  }
+
+  function reset() {
+    FIELDS.forEach(f => activeFilters[f.key].clear());
+    render();
+    onChangeCb(getActiveFilters());
+  }
+
+  function hasActive() {
+    return Object.values(activeFilters).some(s => s.size);
+  }
+
+  return { init, updateData, applyFilters, getActiveFilters, reset, hasActive, FIELDS };
+})();
+
+</script>
+<script>
+/* =========================================================================
+   charts.js — Construcción y actualización reactiva de gráficos (Chart.js)
+   ========================================================================= */
+
+const ChartsModule = (() => {
+
+  const registry = {};
+
+  Chart.defaults.font.family = "'Inter', -apple-system, sans-serif";
+  Chart.defaults.color = '#64748B';
+  Chart.defaults.plugins.legend.labels.usePointStyle = true;
+  Chart.defaults.plugins.legend.labels.boxWidth = 8;
+
+  function upsert(id, type, data, options) {
+    const canvas = document.getElementById(id);
+    if (!canvas) return null;
+    if (registry[id]) registry[id].destroy();
+    registry[id] = new Chart(canvas, {
+      type, data,
+      options: Object.assign({
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration: 400 },
+        plugins: { legend: { display: true } }
+      }, options || {})
+    });
+    return registry[id];
+  }
+
+  function groupCount(rows, keyFn) {
+    const map = new Map();
+    rows.forEach(r => {
+      const k = keyFn(r);
+      if (k === null || k === undefined || k === '') return;
+      map.set(k, (map.get(k) || 0) + 1);
+    });
+    return map;
+  }
+
+  function topN(map, n, sortDesc = true) {
+    return Array.from(map.entries())
+      .sort((a, b) => sortDesc ? b[1] - a[1] : a[1] - b[1])
+      .slice(0, n);
+  }
+
+  /* ---------- Servicios por mes ---------- */
+  function renderByMonth(rows) {
+    const map = new Map();
+    rows.forEach(r => { if (r.mes) map.set(r.mes, (map.get(r.mes) || 0) + 1); });
+    const labels = [], values = [];
+    for (let m = 1; m <= 12; m++) { if (map.has(m)) { labels.push(Utils.MESES_ABR[m - 1]); values.push(map.get(m)); } }
+    upsert('chartByMonth', 'line', {
+      labels, datasets: [{ label: 'Servicios', data: values, borderColor: '#2563EB', backgroundColor: 'rgba(37,99,235,.12)', fill: true, tension: .35, pointRadius: 3 }]
+    }, { plugins: { legend: { display: false } } });
+  }
+
+  /* ---------- Servicios por día (día del mes) ---------- */
+  function renderByDay(rows) {
+    const map = new Map();
+    rows.forEach(r => { if (r.fecha) { const d = r.fecha.getDate(); map.set(d, (map.get(d) || 0) + 1); } });
+    const labels = [], values = [];
+    for (let d = 1; d <= 31; d++) { labels.push(d); values.push(map.get(d) || 0); }
+    upsert('chartByDay', 'bar', {
+      labels, datasets: [{ label: 'Servicios', data: values, backgroundColor: '#0EA5E9', borderRadius: 4 }]
+    }, { plugins: { legend: { display: false } } });
+  }
+
+  /* ---------- Servicios por hora ---------- */
+  function renderByHour(rows) {
+    const map = new Map();
+    let anyHour = false;
+    rows.forEach(r => {
+      if (r.fecha && (r.fecha.getHours() || r.fecha.getMinutes())) {
+        anyHour = true;
+        const h = r.fecha.getHours();
+        map.set(h, (map.get(h) || 0) + 1);
+      }
+    });
+    const labels = [], values = [];
+    for (let h = 0; h < 24; h++) { labels.push(`${h}:00`); values.push(map.get(h) || 0); }
+    upsert('chartByHour', 'bar', {
+      labels, datasets: [{ label: 'Servicios', data: values, backgroundColor: '#8B5CF6', borderRadius: 4 }]
+    }, { plugins: { legend: { display: false }, subtitle: anyHour ? undefined : { display: true, text: 'La fuente no trae hora en la fecha; mostrando distribución en 0.' } } });
+  }
+
+  /* ---------- Genérico: barras horizontales top N ---------- */
+  function renderTopBar(id, rows, keyFn, n = 15, color = '#2563EB') {
+    const map = groupCount(rows, keyFn);
+    const top = topN(map, n);
+    upsert(id, 'bar', {
+      labels: top.map(t => t[0]),
+      datasets: [{ label: 'Servicios', data: top.map(t => t[1]), backgroundColor: color, borderRadius: 4 }]
+    }, { indexAxis: 'y', plugins: { legend: { display: false } } });
+  }
+
+  /* ---------- Genérico: doughnut ---------- */
+  function renderDoughnut(id, rows, keyFn, n = 8) {
+    const map = groupCount(rows, keyFn);
+    const top = topN(map, n);
+    upsert(id, 'doughnut', {
+      labels: top.map(t => t[0]),
+      datasets: [{ data: top.map(t => t[1]), backgroundColor: top.map((_, i) => Utils.colorAt(i)), borderWidth: 2, borderColor: '#fff' }]
+    }, { plugins: { legend: { position: 'right' } }, cutout: '62%' });
+  }
+
+  /* ---------- Serie temporal de tasa (%) por mes ---------- */
+  function renderRateByMonth(id, rows, predicateFn, color) {
+    const totalMap = new Map(), hitMap = new Map();
+    rows.forEach(r => {
+      if (!r.mes) return;
+      totalMap.set(r.mes, (totalMap.get(r.mes) || 0) + 1);
+      if (predicateFn(r)) hitMap.set(r.mes, (hitMap.get(r.mes) || 0) + 1);
+    });
+    const labels = [], values = [];
+    for (let m = 1; m <= 12; m++) {
+      if (totalMap.has(m)) {
+        labels.push(Utils.MESES_ABR[m - 1]);
+        const pct = ((hitMap.get(m) || 0) / totalMap.get(m)) * 100;
+        values.push(Number(pct.toFixed(2)));
+      }
+    }
+    upsert(id, 'line', {
+      labels, datasets: [{ label: '%', data: values, borderColor: color, backgroundColor: color + '22', fill: true, tension: .3, pointRadius: 3 }]
+    }, { plugins: { legend: { display: false } }, scales: { y: { ticks: { callback: v => v + '%' } } } });
+  }
+
+  /* ---------- Productividad por coordinador ---------- */
+  function renderProductivity(rows, id = 'chartProductivity') {
+    renderTopBar(id, rows, r => r.coordinador, 20, '#16A34A');
+  }
+
+  /* ---------- Distribución SLA por rangos ---------- */
+  function renderSlaDistribution(rows) {
+    const ranges = [
+      { label: '0-30 min', test: v => v <= 30 },
+      { label: '30-60 min', test: v => v > 30 && v <= 60 },
+      { label: '60-90 min', test: v => v > 60 && v <= 90 },
+      { label: '90-120 min', test: v => v > 90 && v <= 120 },
+      { label: '> 120 min', test: v => v > 120 }
+    ];
+    const counts = ranges.map(() => 0);
+    rows.forEach(r => {
+      if (r.tiempoReal === null || r.tiempoReal === undefined) return;
+      const idx = ranges.findIndex(rg => rg.test(r.tiempoReal));
+      if (idx >= 0) counts[idx]++;
+    });
+    upsert('chartSlaDist', 'bar', {
+      labels: ranges.map(r => r.label),
+      datasets: [{ label: 'Servicios', data: counts, backgroundColor: ['#16A34A', '#22C55E', '#F59E0B', '#F97316', '#DC2626'], borderRadius: 4 }]
+    }, { plugins: { legend: { display: false } } });
+  }
+
+  function renderSlaGauge(rows) {
+    const withSla = rows.filter(r => r.dentroSla !== null && r.dentroSla !== undefined);
+    const dentro = withSla.filter(r => r.dentroSla).length;
+    const fuera = withSla.length - dentro;
+    upsert('chartSlaGauge', 'doughnut', {
+      labels: ['Dentro SLA', 'Fuera SLA'],
+      datasets: [{ data: [dentro, fuera], backgroundColor: ['#16A34A', '#DC2626'], borderWidth: 2, borderColor: '#fff' }]
+    }, { plugins: { legend: { position: 'bottom' } }, cutout: '68%' });
+  }
+
+  /* ---------- Percápita ---------- */
+  function renderPercapitaMonthly(pcRows) {
+    const map = new Map();
+    pcRows.forEach(r => { if (r.mes) { const arr = map.get(r.mes) || []; arr.push(r.valor); map.set(r.mes, arr); } });
+    const labels = [], values = [];
+    for (let m = 1; m <= 12; m++) {
+      if (map.has(m)) { labels.push(Utils.MESES_ABR[m - 1]); const arr = map.get(m); values.push(arr.reduce((a, b) => a + b, 0) / arr.length); }
+    }
+    upsert('chartPercapitaMonthly', 'line', {
+      labels, datasets: [{ label: 'Percápita promedio', data: values, borderColor: '#2563EB', backgroundColor: 'rgba(37,99,235,.12)', fill: true, tension: .3 }]
+    }, { plugins: { legend: { display: false } } });
+  }
+  function renderPercapitaByCity(pcRows) {
+    const map = new Map();
+    pcRows.forEach(r => { const arr = map.get(r.ciudad) || []; arr.push(r.valor); map.set(r.ciudad, arr); });
+    const entries = Array.from(map.entries()).map(([k, arr]) => [k, arr.reduce((a, b) => a + b, 0) / arr.length]);
+    entries.sort((a, b) => b[1] - a[1]);
+    const top = entries.slice(0, 15);
+    upsert('chartPercapitaCity', 'bar', {
+      labels: top.map(t => t[0]), datasets: [{ label: 'Percápita promedio', data: top.map(t => Number(t[1].toFixed(0))), backgroundColor: '#16A34A', borderRadius: 4 }]
+    }, { indexAxis: 'y', plugins: { legend: { display: false } } });
+  }
+  function renderPercapitaByFarmacia(pcRows) {
+    const map = new Map();
+    pcRows.forEach(r => { const arr = map.get(r.farmacia) || []; arr.push(r.valor); map.set(r.farmacia, arr); });
+    const entries = Array.from(map.entries()).map(([k, arr]) => [k, arr.reduce((a, b) => a + b, 0) / arr.length]);
+    entries.sort((a, b) => b[1] - a[1]);
+    const top = entries.slice(0, 15);
+    upsert('chartPercapitaFarmacia', 'bar', {
+      labels: top.map(t => t[0]), datasets: [{ label: 'Percápita promedio', data: top.map(t => Number(t[1].toFixed(0))), backgroundColor: '#0EA5E9', borderRadius: 4 }]
+    }, { indexAxis: 'y', plugins: { legend: { display: false } } });
+  }
+  function renderPercapitaVsServicios(pcRows, rows) {
+    const svcByMonth = new Map();
+    rows.forEach(r => { if (r.mes) svcByMonth.set(r.mes, (svcByMonth.get(r.mes) || 0) + 1); });
+    const pcByMonth = new Map();
+    pcRows.forEach(r => { if (r.mes) { const arr = pcByMonth.get(r.mes) || []; arr.push(r.valor); pcByMonth.set(r.mes, arr); } });
+    const labels = [], svcVals = [], pcVals = [];
+    for (let m = 1; m <= 12; m++) {
+      if (svcByMonth.has(m) || pcByMonth.has(m)) {
+        labels.push(Utils.MESES_ABR[m - 1]);
+        svcVals.push(svcByMonth.get(m) || 0);
+        const arr = pcByMonth.get(m);
+        pcVals.push(arr ? Number((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(0)) : null);
+      }
+    }
+    upsert('chartPercapitaVsServicios', 'bar', {
+      labels,
+      datasets: [
+        { type: 'bar', label: 'Servicios', data: svcVals, backgroundColor: '#2563EB', yAxisID: 'y', borderRadius: 4 },
+        { type: 'line', label: 'Percápita', data: pcVals, borderColor: '#F59E0B', backgroundColor: '#F59E0B', yAxisID: 'y1', tension: .3 }
+      ]
+    }, {
+      scales: {
+        y: { position: 'left', title: { display: true, text: 'Servicios' } },
+        y1: { position: 'right', title: { display: true, text: 'Percápita' }, grid: { drawOnChartArea: false } }
+      }
+    });
+  }
+
+  function destroyAll() { Object.values(registry).forEach(c => c.destroy()); }
+
+  return {
+    renderByMonth, renderByDay, renderByHour, renderTopBar, renderDoughnut, renderRateByMonth,
+    renderProductivity, renderSlaDistribution, renderSlaGauge,
+    renderPercapitaMonthly, renderPercapitaByCity, renderPercapitaByFarmacia, renderPercapitaVsServicios,
+    groupCount, topN, destroyAll, registry
+  };
+})();
+
+</script>
+<script>
+/* =========================================================================
+   map.js — Mapa de cobertura Colombia (Leaflet) con burbujas por ciudad/municipio
+   ========================================================================= */
+
+const MapModule = (() => {
+
+  let map = null;
+  let markersLayer = null;
+  let onMarkerClick = () => {};
+  const geocodeCache = Utils.lsGet('geocode_cache_v1') || {};
+  let geocodeQueue = [];
+  let geocodeBusy = false;
+
+  /* Coordenadas conocidas de las principales ciudades / municipios de Colombia */
+  const KNOWN_COORDS = {
+    'BOGOTA': [4.7110, -74.0721], 'MEDELLIN': [6.2442, -75.5812], 'CALI': [3.4516, -76.5320],
+    'BARRANQUILLA': [10.9685, -74.7813], 'CARTAGENA': [10.3910, -75.4794], 'BUCARAMANGA': [7.1193, -73.1227],
+    'CUCUTA': [7.8939, -72.5078], 'PEREIRA': [4.8143, -75.6946], 'IBAGUE': [4.4389, -75.2322],
+    'PASTO': [1.2136, -77.2811], 'MANIZALES': [5.0689, -75.5174], 'NEIVA': [2.9273, -75.2819],
+    'VILLAVICENCIO': [4.1420, -73.6266], 'MONTERIA': [8.7479, -75.8814], 'VALLEDUPAR': [10.4631, -73.2532],
+    'SINCELEJO': [9.3047, -75.3978], 'POPAYAN': [2.4448, -76.6147], 'TUNJA': [5.5353, -73.3678],
+    'FLORENCIA': [1.6144, -75.6062], 'RIOHACHA': [11.5444, -72.9072], 'QUIBDO': [5.6947, -76.6611],
+    'YOPAL': [5.3378, -72.3959], 'ARMENIA': [4.5339, -75.6811], 'SANTA MARTA': [11.2408, -74.1990],
+    'TULUA': [4.0847, -76.1954], 'SOACHA': [4.5793, -74.2165], 'SOLEDAD': [10.9143, -74.7645],
+    'ITAGUI': [6.1719, -75.6114], 'BELLO': [6.3373, -75.5581], 'ENVIGADO': [6.1699, -75.5910],
+    'PALMIRA': [3.5394, -76.3036], 'GIRARDOT': [4.3033, -74.8033], 'BUENAVENTURA': [3.8801, -77.0312],
+    'MAGANGUE': [9.2417, -74.7554], 'IPIALES': [0.8281, -77.6412], 'TUMACO': [1.7986, -78.7864],
+    'APARTADO': [7.8834, -76.6198], 'TURBO': [8.0930, -76.7288], 'DUITAMA': [5.8237, -73.0334],
+    'SOGAMOSO': [5.7147, -72.9335], 'ZIPAQUIRA': [5.0223, -74.0031], 'CHIA': [4.8618, -74.0322],
+    'FUSAGASUGA': [4.3353, -74.3644], 'GIRON': [7.0678, -73.1715], 'FLORIDABLANCA': [7.0653, -73.0864],
+    'PIEDECUESTA': [6.9895, -73.0499], 'BARRANCABERMEJA': [7.0653, -73.8547], 'MAICAO': [11.3806, -72.2385],
+    'SAN ANDRES': [12.5847, -81.7006], 'LETICIA': [-4.2151, -69.9406], 'MITU': [1.2528, -70.2340],
+    'PUERTO CARRENO': [6.1892, -67.4859], 'INIRIDA': [3.8653, -67.9239], 'SAN JOSE DEL GUAVIARE': [2.5708, -72.6413],
+    'MOCOA': [1.1497, -76.6486], 'ARAUCA': [7.0847, -70.7591], 'CIENAGA': [11.0084, -74.2472],
+    'EL BANCO': [9.0014, -73.9764], 'LORICA': [9.2372, -75.8145], 'CHIGORODO': [7.6664, -76.6819],
+    'RIONEGRO': [6.1552, -75.3736], 'SABANETA': [6.1518, -75.6164], 'LA CEJA': [6.0294, -75.4306],
+    'CARTAGO': [4.7461, -75.9107], 'BUGA': [3.9009, -76.2986], 'YUMBO': [3.5878, -76.4941],
+    'JAMUNDI': [3.2617, -76.5423], 'DOSQUEBRADAS': [4.8397, -75.6714], 'ZARZAL': [4.3961, -76.0658],
+    'ESPINAL': [4.1500, -74.8836], 'MELGAR': [4.2039, -74.6414], 'CHAPARRAL': [3.7233, -75.4839],
+    'GARZON': [2.1969, -75.6289], 'PITALITO': [1.8535, -76.0503], 'AIPE': [3.2225, -75.2372],
+    'FACATATIVA': [4.8133, -74.3550], 'MOSQUERA': [4.7059, -74.2306], 'MADRID': [4.7325, -74.2678],
+    'CAJICA': [4.9186, -74.0261], 'SOPO': [4.9089, -73.9414], 'TOCANCIPA': [4.9672, -73.9878]
+  };
+
+  function keyFor(name) { return Utils.normalize(name); }
+
+  function getCoords(name) {
+    const key = keyFor(name);
+    if (KNOWN_COORDS[key]) return KNOWN_COORDS[key];
+    if (geocodeCache[key]) return geocodeCache[key];
+    return null;
+  }
+
+  function queueGeocode(name, onResolved) {
+    const key = keyFor(name);
+    if (KNOWN_COORDS[key] || geocodeCache[key]) return;
+    geocodeQueue.push({ name, key, onResolved });
+    processQueue();
+  }
+
+  async function processQueue() {
+    if (geocodeBusy || !geocodeQueue.length) return;
+    geocodeBusy = true;
+    while (geocodeQueue.length) {
+      const item = geocodeQueue.shift();
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&country=Colombia&q=${encodeURIComponent(item.name)}`;
+        const res = await fetch(url);
+        const json = await res.json();
+        if (json && json[0]) {
+          const coords = [parseFloat(json[0].lat), parseFloat(json[0].lon)];
+          geocodeCache[item.key] = coords;
+          Utils.lsSet('geocode_cache_v1', geocodeCache);
+          item.onResolved && item.onResolved(coords);
+        }
+      } catch (e) { /* silencioso: geocodificación best-effort */ }
+      await new Promise(res => setTimeout(res, 1100)); // respeta límite de Nominatim (1 req/s)
+    }
+    geocodeBusy = false;
+  }
+
+  function init(elementId, markerClickCb) {
+    onMarkerClick = markerClickCb || (() => {});
+    map = L.map(elementId, { scrollWheelZoom: true }).setView([4.5709, -74.2973], 5.4);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 18
+    }).addTo(map);
+    markersLayer = L.layerGroup().addTo(map);
+  }
+
+  function metricColor(cumplimiento) {
+    if (cumplimiento === null || cumplimiento === undefined || isNaN(cumplimiento)) return '#94A3B8';
+    if (cumplimiento >= 90) return '#16A34A';
+    if (cumplimiento >= 75) return '#F59E0B';
+    return '#DC2626';
+  }
+
+  function aggregateByPlace(rows, pcRows, useMunicipio) {
+    const field = useMunicipio ? 'municipio' : 'ciudad';
+    const map_ = new Map();
+    rows.forEach(r => {
+      const place = r[field];
+      if (!place || place === 'Sin dato') return;
+      if (!map_.has(place)) map_.set(place, { total: 0, efectivos: 0, cancelados: 0, tiempos: [], ciudad: r.ciudad });
+      const agg = map_.get(place);
+      agg.total++;
+      if (r.estado === 'EFECTIVO') agg.efectivos++;
+      if (r.estado === 'CANCELADO') agg.cancelados++;
+      if (r.tiempoReal !== null && r.tiempoReal !== undefined) agg.tiempos.push(r.tiempoReal);
+    });
+    const pcMap = new Map();
+    (pcRows || []).forEach(r => {
+      const place = useMunicipio ? r.ciudad : r.ciudad; // percápita normalmente a nivel ciudad
+      if (!place) return;
+      if (!pcMap.has(place)) pcMap.set(place, []);
+      pcMap.get(place).push(r.valor);
+    });
+    return Array.from(map_.entries()).map(([place, agg]) => {
+      const cumplimiento = agg.total ? (agg.efectivos / agg.total) * 100 : null;
+      const tiempoProm = agg.tiempos.length ? agg.tiempos.reduce((a, b) => a + b, 0) / agg.tiempos.length : null;
+      const pcArr = pcMap.get(agg.ciudad);
+      const percapita = pcArr && pcArr.length ? pcArr.reduce((a, b) => a + b, 0) / pcArr.length : null;
+      return { place, total: agg.total, cumplimiento, cancelados: agg.cancelados, tiempoProm, percapita };
+    });
+  }
+
+  function render(rows, pcRows, useMunicipio, metricMode) {
+    if (!map) return;
+    markersLayer.clearLayers();
+    const data = aggregateByPlace(rows, pcRows, useMunicipio);
+    if (!data.length) return;
+    const maxTotal = Math.max(...data.map(d => d.total), 1);
+
+    data.forEach(d => {
+      let coords = getCoords(d.place);
+      const drawMarker = (c) => {
+        const radius = 6 + (Math.sqrt(d.total / maxTotal) * 26);
+        const color = metricMode === 'cumplimiento' ? metricColor(d.cumplimiento) : '#2563EB';
+        const marker = L.circleMarker(c, {
+          radius, color, fillColor: color, fillOpacity: 0.55, weight: 1.5
+        });
+        marker.bindPopup(`
+          <div class="map-popup">
+            <h4>${d.place}</h4>
+            <table>
+              <tr><td>Servicios</td><td><b>${Utils.formatNumber(d.total)}</b></td></tr>
+              <tr><td>Cumplimiento</td><td><b>${d.cumplimiento !== null ? Utils.formatPct(d.cumplimiento) : '—'}</b></td></tr>
+              <tr><td>Tiempo prom.</td><td><b>${Utils.minutesToHHMM(d.tiempoProm)}</b></td></tr>
+              <tr><td>Cancelaciones</td><td><b>${Utils.formatNumber(d.cancelados)}</b></td></tr>
+              <tr><td>Percápita</td><td><b>${d.percapita !== null ? Utils.formatCurrency(d.percapita) : '—'}</b></td></tr>
+            </table>
+          </div>`);
+        marker.on('click', () => onMarkerClick(d.place, useMunicipio ? 'municipio' : 'ciudad'));
+        marker.addTo(markersLayer);
+      };
+      if (coords) drawMarker(coords);
+      else queueGeocode(d.place, (c) => drawMarker(c));
+    });
+  }
+
+  function invalidateSize() { if (map) setTimeout(() => map.invalidateSize(), 200); }
+
+  return { init, render, invalidateSize };
+})();
+
+</script>
+<script>
+/* =========================================================================
+   app.js — Orquestador principal del Dashboard
+   ========================================================================= */
+
+(() => {
+  const els = {};
+  let filteredRows = [];
+  let tableState = { page: 1, pageSize: 50, sortKey: 'fecha', sortDir: 'desc', search: '' };
+  const KPI_THRESHOLDS = {
+    cumplimiento: { good: 90, warn: 75 },
+    slaOk: { good: 90, warn: 75 },
+    cobertura: { good: 80, warn: 60 }
+  };
+
+  document.addEventListener('DOMContentLoaded', init);
+
+  async function init() {
+    cacheEls();
+    wireStaticUI();
+
+    const hadCache = DataLayer.loadFromCacheIfAny();
+    if (hadCache) renderAll();
+
+    setStatus('loading');
+    try {
+      await DataLayer.loadAll();
+      const state = DataLayer.getState();
+      if (state.error === 'NO_DATA') {
+        setStatus('error', 'No se pudieron leer datos de Google Sheets. Verifica los GID configurados en js/data.js.');
+      } else {
+        setStatus('ok');
+      }
+      FiltersModule.init(state.rawRows, els.filtersBar, onFiltersChanged);
+      renderAll();
+      DataLayer.startAutoRefresh((newState) => {
+        FiltersModule.updateData(newState.rawRows);
+        renderAll();
+      });
+    } catch (e) {
+      console.error(e);
+      setStatus('error', 'Error al conectar con Google Sheets. Revisa tu conexión o la configuración de publicación del Sheet.');
+    }
+  }
+
+  function cacheEls() {
+    els.filtersBar = document.getElementById('filtersBar');
+    els.lastUpdated = document.getElementById('lastUpdated');
+    els.statusDot = document.getElementById('statusDot');
+    els.statusMsg = document.getElementById('statusMsg');
+    els.kpiGrid = document.getElementById('kpiGrid');
+    els.alertsList = document.getElementById('alertsList');
+    els.alertsBadge = document.getElementById('alertsBadge');
+    els.tableBody = document.getElementById('tableBody');
+    els.tableSearch = document.getElementById('tableSearch');
+    els.tableInfo = document.getElementById('tableInfo');
+    els.pagination = document.getElementById('pagination');
+    els.sections = document.querySelectorAll('.section');
+    els.navItems = document.querySelectorAll('.nav-item');
+    els.mapMetricSelect = document.getElementById('mapMetricSelect');
+    els.mapLevelSelect = document.getElementById('mapLevelSelect');
+  }
+
+  function wireStaticUI() {
+    document.getElementById('btnFullscreen').addEventListener('click', toggleFullscreen);
+    document.getElementById('btnExportPDF').addEventListener('click', () => window.print());
+    document.getElementById('btnExportExcel').addEventListener('click', exportCurrentViewExcel);
+    document.getElementById('btnResetFilters').addEventListener('click', () => FiltersModule.reset());
+    document.getElementById('btnMenuToggle').addEventListener('click', () => document.body.classList.toggle('sidebar-collapsed'));
+
+    els.navItems.forEach(item => item.addEventListener('click', () => {
+      const target = item.dataset.section;
+      els.navItems.forEach(n => n.classList.remove('active'));
+      item.classList.add('active');
+      els.sections.forEach(s => s.classList.toggle('active', s.id === 'section-' + target));
+      if (target === 'cobertura') MapModule.invalidateSize();
+    }));
+
+    els.tableSearch.addEventListener('input', Utils.debounce(e => { tableState.search = e.target.value; tableState.page = 1; renderTable(); }, 150));
+    document.getElementById('btnTableCSV').addEventListener('click', () => exportTable('csv'));
+    document.getElementById('btnTableExcel').addEventListener('click', () => exportTable('xls'));
+    document.getElementById('btnTablePrint').addEventListener('click', () => window.print());
+    document.querySelectorAll('#dataTable th[data-sort]').forEach(th => th.addEventListener('click', () => {
+      const key = th.dataset.sort;
+      if (tableState.sortKey === key) tableState.sortDir = tableState.sortDir === 'asc' ? 'desc' : 'asc';
+      else { tableState.sortKey = key; tableState.sortDir = 'asc'; }
+      renderTable();
+    }));
+
+    if (els.mapMetricSelect) els.mapMetricSelect.addEventListener('change', () => renderMap());
+    if (els.mapLevelSelect) els.mapLevelSelect.addEventListener('change', () => renderMap());
+
+    MapModule.init('mapCoverage', (place) => { /* Interactividad: click en municipio resalta */ flashToast(`Mostrando datos de ${place}`); });
+
+    setInterval(() => { const st = DataLayer.getState(); if (st.lastUpdated) els.lastUpdated.textContent = Utils.formatDateTime(st.lastUpdated); }, 30000);
+  }
+
+  function setStatus(kind, msg) {
+    els.statusDot.className = 'status-dot ' + kind;
+    els.statusMsg.textContent = msg || (kind === 'ok' ? 'Datos sincronizados' : 'Cargando datos...');
+  }
+
+  function toggleFullscreen() {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+    else document.exitFullscreen();
+  }
+
+  function onFiltersChanged() { renderAll(); }
+
+  function getFilteredRows() {
+    const state = DataLayer.getState();
+    return FiltersModule.applyFilters(state.rawRows, null);
+  }
+  function getFilteredPercapita() {
+    const state = DataLayer.getState();
+    const filters = FiltersModule.getActiveFilters();
+    return state.percapitaRows.filter(r => {
+      if (filters.ciudad && !filters.ciudad.has(r.ciudad)) return false;
+      if (filters.anio && !filters.anio.has(r.anio)) return false;
+      return true;
+    });
+  }
+
+  function renderAll() {
+    const state = DataLayer.getState();
+    if (state.lastUpdated) els.lastUpdated.textContent = Utils.formatDateTime(state.lastUpdated);
+    filteredRows = getFilteredRows();
+    const pcRows = getFilteredPercapita();
+
+    renderKPIs(filteredRows);
+    renderCharts(filteredRows, pcRows);
+    renderMap();
+    renderAlerts(filteredRows);
+    renderTable();
+  }
+
+  /* ================= KPIs ================= */
+  function getComparisonSets(rows) {
+    const state = DataLayer.getState();
+    const filters = FiltersModule.getActiveFilters();
+    const baseRows = FiltersModule.applyFilters(state.rawRows, 'mes').filter(r => rows.includes(r) || true);
+    const monthsPresent = Array.from(new Set(baseRows.map(r => r.mes).filter(Boolean))).sort((a, b) => a - b);
+    let curMonth, prevMonth;
+    if (filters.mes && filters.mes.size === 1) {
+      curMonth = Array.from(filters.mes)[0];
+      prevMonth = curMonth > 1 ? curMonth - 1 : null;
+    } else if (monthsPresent.length >= 2) {
+      curMonth = monthsPresent[monthsPresent.length - 1];
+      prevMonth = monthsPresent[monthsPresent.length - 2];
+    }
+    if (!prevMonth) return { current: rows, previous: null };
+    const previous = baseRows.filter(r => r.mes === prevMonth);
+    const current = (filters.mes && filters.mes.size === 1) ? rows : baseRows.filter(r => r.mes === curMonth);
+    return { current, previous };
+  }
+
+  function kpiStats(rows) {
+    const total = rows.length;
+    const efectivos = rows.filter(r => r.estado === 'EFECTIVO').length;
+    const cancelados = rows.filter(r => r.estado === 'CANCELADO').length;
+    const novedades = rows.filter(r => r.estado === 'NOVEDAD').length;
+    const tiempos = rows.map(r => r.tiempoReal).filter(v => v !== null && v !== undefined);
+    const tiempoProm = tiempos.length ? tiempos.reduce((a, b) => a + b, 0) / tiempos.length : null;
+    const valores = rows.map(r => r.valor).filter(v => v !== null && v !== undefined);
+    const ticketProm = valores.length ? valores.reduce((a, b) => a + b, 0) / valores.length : null;
+    const ciudades = new Set(rows.map(r => r.ciudad).filter(c => c && c !== 'Sin dato')).size;
+    const municipios = new Set(rows.map(r => r.municipio).filter(c => c && c !== 'Sin dato')).size;
+    const cumplimiento = total ? (efectivos / total) * 100 : null;
+    return {
+      total, efectivos, cancelados, novedades, tiempoProm, ticketProm, ciudades, municipios, cumplimiento,
+      cancelacionesPct: total ? (cancelados / total) * 100 : null,
+      novedadesPct: total ? (novedades / total) * 100 : null
+    };
+  }
+
+  function kpiCard(label, valueStr, variation, arrowGoodWhenUp, semaforoState, icon) {
+    let varHtml = '';
+    if (variation !== null && variation !== undefined && isFinite(variation)) {
+      const up = variation >= 0;
+      const good = arrowGoodWhenUp ? up : !up;
+      varHtml = `<span class="kpi-var ${good ? 'kpi-var--good' : 'kpi-var--bad'}">
+        <svg width="10" height="10" viewBox="0 0 10 10" style="transform:rotate(${up ? '0' : '180'}deg)"><path d="M5 1l4 6H1z" fill="currentColor"/></svg>
+        ${Math.abs(variation).toFixed(1)}%</span>`;
+    }
+    const dot = semaforoState ? `<span class="kpi-dot kpi-dot--${semaforoState}"></span>` : '';
+    return `<div class="kpi-card">
+      <div class="kpi-card__top"><span class="kpi-icon">${icon}</span>${dot}</div>
+      <div class="kpi-value">${valueStr}</div>
+      <div class="kpi-label">${label}</div>
+      ${varHtml}
+    </div>`;
+  }
+
+  function renderKPIs(rows) {
+    const { current, previous } = getComparisonSets(rows);
+    const cur = kpiStats(rows);
+    const prevStats = previous ? kpiStats(previous) : null;
+    const curForVar = previous ? kpiStats(current) : null;
+
+    const v = (key) => (prevStats && curForVar) ? Utils.variation(curForVar[key], prevStats[key]) : null;
+
+    const cards = [
+      kpiCard('Total Servicios', Utils.formatNumber(cur.total), v('total'), true, null, '📦'),
+      kpiCard('Servicios Efectivos', Utils.formatNumber(cur.efectivos), v('efectivos'), true, null, '✅'),
+      kpiCard('Cumplimiento', Utils.formatPct(cur.cumplimiento), v('cumplimiento'), true, Utils.semaforo(cur.cumplimiento, KPI_THRESHOLDS.cumplimiento), '🎯'),
+      kpiCard('Cancelaciones', Utils.formatNumber(cur.cancelados) + ` (${Utils.formatPct(cur.cancelacionesPct)})`, v('cancelacionesPct'), false, null, '🚫'),
+      kpiCard('Novedades', Utils.formatNumber(cur.novedades) + ` (${Utils.formatPct(cur.novedadesPct)})`, v('novedadesPct'), false, null, '⚠️'),
+      kpiCard('Tiempo Promedio', Utils.minutesToHHMM(cur.tiempoProm), v('tiempoProm'), false, null, '⏱'),
+      kpiCard('Ticket Promedio', cur.ticketProm !== null ? Utils.formatCurrency(cur.ticketProm) : '—', v('ticketProm'), true, null, '💳'),
+      kpiCard('Cobertura', Utils.formatNumber(cur.municipios) + ' municipios', null, true, null, '🌎'),
+      kpiCard('Ciudades', Utils.formatNumber(cur.ciudades), null, true, null, '🏙'),
+      kpiCard('Municipios', Utils.formatNumber(cur.municipios), null, true, null, '📍')
+    ];
+    els.kpiGrid.innerHTML = cards.join('');
+  }
+
+  /* ================= Gráficos ================= */
+  function renderCharts(rows, pcRows) {
+    ChartsModule.renderByMonth(rows);
+    ChartsModule.renderByDay(rows);
+    ChartsModule.renderByHour(rows);
+    ChartsModule.renderTopBar('chartByCity', rows, r => r.ciudad, 15, '#2563EB');
+    ChartsModule.renderTopBar('chartByMunicipality', rows, r => r.municipio, 15, '#0EA5E9');
+    ChartsModule.renderDoughnut('chartByChannel', rows, r => r.canal);
+    ChartsModule.renderDoughnut('chartByChannelType', rows, r => r.tipoCanal);
+    ChartsModule.renderTopBar('chartByServiceType', rows, r => r.tipoServicio, 12, '#16A34A');
+    ChartsModule.renderTopBar('chartBySpecialty', rows, r => r.codEspecialidad, 12, '#8B5CF6');
+    ChartsModule.renderRateByMonth('chartCancelaciones', rows, r => r.estado === 'CANCELADO', '#DC2626');
+    ChartsModule.renderRateByMonth('chartNovedades', rows, r => r.estado === 'NOVEDAD', '#F59E0B');
+    ChartsModule.renderRateByMonth('chartCumplimiento', rows, r => r.estado === 'EFECTIVO', '#16A34A');
+    ChartsModule.renderProductivity(rows, 'chartProductivity');
+    ChartsModule.renderProductivity(rows, 'chartProductivity2');
+    ChartsModule.renderSlaDistribution(rows);
+    ChartsModule.renderSlaGauge(rows);
+    ChartsModule.renderTopBar('chartSlaCiudad', rows.filter(r => r.dentroSla !== null), r => r.ciudad, 10, '#2563EB');
+    ChartsModule.renderTopBar('chartSlaFarmacia', rows.filter(r => r.dentroSla !== null), r => r.farmacia, 10, '#0EA5E9');
+    ChartsModule.renderTopBar('chartSlaEspecialidad', rows.filter(r => r.dentroSla !== null), r => r.codEspecialidad, 10, '#8B5CF6');
+    ChartsModule.renderPercapitaMonthly(pcRows);
+    ChartsModule.renderPercapitaByCity(pcRows);
+    ChartsModule.renderPercapitaByFarmacia(pcRows);
+    ChartsModule.renderPercapitaVsServicios(pcRows, rows);
+  }
+
+  function renderMap() {
+    const level = els.mapLevelSelect ? els.mapLevelSelect.value : 'ciudad';
+    const metric = els.mapMetricSelect ? els.mapMetricSelect.value : 'total';
+    MapModule.render(filteredRows, getFilteredPercapita(), level === 'municipio', metric);
+  }
+
+  /* ================= Alertas ================= */
+  function renderAlerts(rows) {
+    const { current, previous } = getComparisonSets(rows);
+    const cur = kpiStats(rows);
+    const prev = previous ? kpiStats(previous) : null;
+    const alerts = [];
+
+    if (cur.cumplimiento !== null && cur.cumplimiento < 85) {
+      alerts.push({ sev: cur.cumplimiento < 70 ? 'critical' : 'warn', title: 'Bajo cumplimiento', detail: `El cumplimiento actual es ${Utils.formatPct(cur.cumplimiento)}, por debajo del objetivo (85%).` });
+    }
+    if (prev && cur.cancelacionesPct !== null && prev.cancelacionesPct !== null && (cur.cancelacionesPct - prev.cancelacionesPct) > 2) {
+      alerts.push({ sev: 'warn', title: 'Incremento en cancelaciones', detail: `Las cancelaciones subieron ${(cur.cancelacionesPct - prev.cancelacionesPct).toFixed(1)} pp frente al período anterior.` });
+    }
+    if (prev && cur.novedadesPct !== null && prev.novedadesPct !== null && (cur.novedadesPct - prev.novedadesPct) > 2) {
+      alerts.push({ sev: 'warn', title: 'Incremento en novedades', detail: `Las novedades subieron ${(cur.novedadesPct - prev.novedadesPct).toFixed(1)} pp frente al período anterior.` });
+    }
+    const withSla = rows.filter(r => r.dentroSla !== null && r.dentroSla !== undefined);
+    if (withSla.length) {
+      const fueraPct = (withSla.filter(r => !r.dentroSla).length / withSla.length) * 100;
+      if (fueraPct > 15) alerts.push({ sev: fueraPct > 30 ? 'critical' : 'warn', title: 'Tiempo superior al SLA', detail: `${Utils.formatPct(fueraPct)} de los servicios exceden el tiempo SLA definido.` });
+    }
+
+    function criticalGroups(field, label) {
+      const map = new Map();
+      rows.forEach(r => {
+        const k = r[field];
+        if (!k || k === 'Sin dato') return;
+        if (!map.has(k)) map.set(k, { total: 0, ef: 0 });
+        const g = map.get(k); g.total++; if (r.estado === 'EFECTIVO') g.ef++;
+      });
+      map.forEach((g, k) => {
+        if (g.total >= 5) {
+          const cump = (g.ef / g.total) * 100;
+          if (cump < 80) alerts.push({ sev: cump < 60 ? 'critical' : 'warn', title: `${label} crítico: ${k}`, detail: `Cumplimiento de ${Utils.formatPct(cump)} con ${g.total} servicios.` });
+        }
+      });
+    }
+    criticalGroups('codEspecialidad', 'Especialidad');
+    criticalGroups('municipio', 'Municipio');
+    criticalGroups('farmacia', 'Farmacia');
+
+    alerts.sort((a, b) => (a.sev === 'critical' ? 0 : 1) - (b.sev === 'critical' ? 0 : 1));
+    els.alertsBadge.textContent = alerts.length;
+    els.alertsBadge.style.display = alerts.length ? 'inline-flex' : 'none';
+    els.alertsList.innerHTML = alerts.length ? alerts.map(a => `
+      <div class="alert-item alert-item--${a.sev}">
+        <span class="alert-dot"></span>
+        <div><div class="alert-title">${a.title}</div><div class="alert-detail">${a.detail}</div></div>
+      </div>`).join('') : `<div class="empty-state">Sin alertas activas para los filtros seleccionados.</div>`;
+  }
+
+  /* ================= Tabla ================= */
+  const TABLE_COLUMNS = [
+    { key: 'fecha', label: 'Fecha', fmt: r => r.fecha ? Utils.formatDateTime(r.fecha).split(' ')[0] : '—' },
+    { key: 'ciudad', label: 'Ciudad', fmt: r => r.ciudad },
+    { key: 'municipio', label: 'Municipio', fmt: r => r.municipio },
+    { key: 'farmacia', label: 'Farmacia', fmt: r => r.farmacia },
+    { key: 'cliente', label: 'Cliente', fmt: r => r.cliente },
+    { key: 'canal', label: 'Canal', fmt: r => r.canal },
+    { key: 'tipoServicio', label: 'Tipo Servicio', fmt: r => r.tipoServicio },
+    { key: 'codEspecialidad', label: 'Especialidad', fmt: r => r.codEspecialidad },
+    { key: 'estado', label: 'Estado', fmt: r => r.estado },
+    { key: 'tiempoReal', label: 'Tiempo', fmt: r => Utils.minutesToHHMM(r.tiempoReal) },
+    { key: 'dentroSla', label: 'SLA', fmt: r => r.dentroSla === null ? '—' : (r.dentroSla ? 'Dentro' : 'Fuera') },
+    { key: 'coordinador', label: 'Coordinador', fmt: r => r.coordinador }
+  ];
+
+  function getTableRows() {
+    let rows = filteredRows;
+    if (tableState.search) {
+      const s = Utils.normalize(tableState.search);
+      rows = rows.filter(r => TABLE_COLUMNS.some(c => Utils.normalize(String(c.fmt(r))).includes(s)));
+    }
+    const key = tableState.sortKey, dir = tableState.sortDir === 'asc' ? 1 : -1;
+    rows = rows.slice().sort((a, b) => {
+      let av = a[key], bv = b[key];
+      if (av instanceof Date || bv instanceof Date) { av = av ? av.getTime() : 0; bv = bv ? bv.getTime() : 0; }
+      if (av === null || av === undefined) av = '';
+      if (bv === null || bv === undefined) bv = '';
+      if (av < bv) return -1 * dir; if (av > bv) return 1 * dir; return 0;
+    });
+    return rows;
+  }
+
+  function renderTable() {
+    const rows = getTableRows();
+    const totalPages = Math.max(1, Math.ceil(rows.length / tableState.pageSize));
+    tableState.page = Math.min(tableState.page, totalPages);
+    const start = (tableState.page - 1) * tableState.pageSize;
+    const pageRows = rows.slice(start, start + tableState.pageSize);
+
+    els.tableBody.innerHTML = pageRows.map(r => `<tr>${TABLE_COLUMNS.map(c => `<td>${c.fmt(r) ?? ''}</td>`).join('')}</tr>`).join('') ||
+      `<tr><td colspan="${TABLE_COLUMNS.length}" class="empty-state">Sin registros para los filtros seleccionados.</td></tr>`;
+
+    els.tableInfo.textContent = `${Utils.formatNumber(rows.length)} registros — página ${tableState.page} de ${totalPages}`;
+    els.pagination.innerHTML = `
+      <button ${tableState.page <= 1 ? 'disabled' : ''} data-p="prev">‹ Anterior</button>
+      <button ${tableState.page >= totalPages ? 'disabled' : ''} data-p="next">Siguiente ›</button>`;
+    els.pagination.querySelector('[data-p="prev"]').addEventListener('click', () => { tableState.page--; renderTable(); });
+    els.pagination.querySelector('[data-p="next"]').addEventListener('click', () => { tableState.page++; renderTable(); });
+  }
+
+  function exportTable(kind) {
+    const rows = getTableRows();
+    const headers = TABLE_COLUMNS.map(c => c.label);
+    const data = rows.map(r => TABLE_COLUMNS.map(c => c.fmt(r)));
+    if (kind === 'csv') Utils.exportCSV('detalle_servicios.csv', headers, data);
+    else Utils.exportExcel('detalle_servicios.xls', headers, data);
+  }
+
+  function exportCurrentViewExcel() {
+    const rows = getTableRows();
+    const headers = TABLE_COLUMNS.map(c => c.label);
+    const data = rows.map(r => TABLE_COLUMNS.map(c => c.fmt(r)));
+    Utils.exportExcel('dashboard_export.xls', headers, data);
+  }
+
+  function flashToast(msg) {
+    let t = document.getElementById('toast');
+    if (!t) {
+      t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; document.body.appendChild(t);
+    }
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.classList.remove('show'), 2500);
+  }
+})();
+
+</script>
 </body>
 </html>
