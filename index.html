@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Operativo — Última Milla</title>
+<meta name="description" content="Dashboard ejecutivo y operativo de última milla, conectado en vivo a Google Sheets.">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- ===================== TOPBAR ===================== -->
+<header class="topbar">
+  <button id="btnMenuToggle" class="icon-btn" aria-label="Menú" title="Menú">
+    <svg width="20" height="20" viewBox="0 0 20 20"><path d="M2 5h16M2 10h16M2 15h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+  </button>
+  <div class="topbar__brand">
+    <span class="topbar__logo">🚚</span>
+    <div>
+      <div class="topbar__title">Dashboard Operativo</div>
+      <div class="topbar__subtitle">Última Milla — Colsubsidio</div>
+    </div>
+  </div>
+
+  <div class="topbar__status">
+    <span id="statusDot" class="status-dot loading"></span>
+    <span id="statusMsg">Cargando datos...</span>
+    <span class="topbar__divider"></span>
+    <span class="topbar__updated-label">Última actualización:</span>
+    <span id="lastUpdated" class="topbar__updated-value">—</span>
+  </div>
+
+  <div class="topbar__actions">
+    <button id="btnExportExcel" class="btn btn--ghost" title="Exportar Excel">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="1.6"/><path d="M14 2v6h6" stroke="currentColor" stroke-width="1.6"/></svg>
+      Excel
+    </button>
+    <button id="btnExportPDF" class="btn btn--ghost" title="Exportar PDF">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="1.6"/><path d="M14 2v6h6" stroke="currentColor" stroke-width="1.6"/></svg>
+      PDF
+    </button>
+    <button id="btnFullscreen" class="btn btn--primary" title="Pantalla completa">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+</header>
+
+<!-- ===================== FILTROS ===================== -->
+<div class="filters-wrap">
+  <div id="filtersBar" class="filters-bar"></div>
+  <button id="btnResetFilters" class="btn btn--text">Limpiar filtros</button>
+</div>
+
+<div class="app-shell">
+  <!-- ===================== SIDEBAR ===================== -->
+  <nav class="sidebar">
+    <div class="nav-item active" data-section="inicio"><span>🏠</span>Inicio</div>
+    <div class="nav-item" data-section="indicadores"><span>📊</span>Indicadores</div>
+    <div class="nav-item" data-section="operacion"><span>🚚</span>Operación</div>
+    <div class="nav-item" data-section="sla"><span>⏱</span>SLA</div>
+    <div class="nav-item" data-section="cobertura"><span>🌎</span>Cobertura</div>
+    <div class="nav-item" data-section="percapita"><span>👥</span>Percápita</div>
+    <div class="nav-item" data-section="productividad"><span>📈</span>Productividad</div>
+    <div class="nav-item" data-section="alertas"><span>⚠</span>Alertas <span id="alertsBadge" class="nav-badge"></span></div>
+    <div class="nav-item" data-section="detalle"><span>📋</span>Detalle</div>
+  </nav>
+
+  <!-- ===================== CONTENIDO ===================== -->
+  <main class="content">
+
+    <!-- ---------- INICIO ---------- -->
+    <section id="section-inicio" class="section active">
+      <h1 class="section-title">Inicio</h1>
+      <div id="kpiGrid" class="kpi-grid"></div>
+      <div class="chart-grid chart-grid--2">
+        <div class="card"><h3>Servicios por mes</h3><div class="chart-box"><canvas id="chartByMonth"></canvas></div></div>
+        <div class="card"><h3>Servicios por día</h3><div class="chart-box"><canvas id="chartByDay"></canvas></div></div>
+      </div>
+    </section>
+
+    <!-- ---------- INDICADORES ---------- -->
+    <section id="section-indicadores" class="section">
+      <h1 class="section-title">Indicadores</h1>
+      <div class="chart-grid chart-grid--2">
+        <div class="card"><h3>Servicios por canal</h3><div class="chart-box"><canvas id="chartByChannel"></canvas></div></div>
+        <div class="card"><h3>Servicios por tipo de canal</h3><div class="chart-box"><canvas id="chartByChannelType"></canvas></div></div>
+        <div class="card"><h3>Servicios por tipo de servicio</h3><div class="chart-box"><canvas id="chartByServiceType"></canvas></div></div>
+        <div class="card"><h3>Servicios por especialidad</h3><div class="chart-box"><canvas id="chartBySpecialty"></canvas></div></div>
+      </div>
+    </section>
+
+    <!-- ---------- OPERACIÓN ---------- -->
+    <section id="section-operacion" class="section">
+      <h1 class="section-title">Operación</h1>
+      <div class="chart-grid chart-grid--2">
+        <div class="card"><h3>Servicios por ciudad</h3><div class="chart-box"><canvas id="chartByCity"></canvas></div></div>
+        <div class="card"><h3>Servicios por municipio</h3><div class="chart-box"><canvas id="chartByMunicipality"></canvas></div></div>
+        <div class="card"><h3>Servicios por hora</h3><div class="chart-box"><canvas id="chartByHour"></canvas></div></div>
+        <div class="card"><h3>Productividad por coordinador</h3><div class="chart-box"><canvas id="chartProductivity"></canvas></div></div>
+        <div class="card"><h3>% Cancelaciones por mes</h3><div class="chart-box"><canvas id="chartCancelaciones"></canvas></div></div>
+        <div class="card"><h3>% Novedades por mes</h3><div class="chart-box"><canvas id="chartNovedades"></canvas></div></div>
+        <div class="card card--full"><h3>% Cumplimiento por mes</h3><div class="chart-box"><canvas id="chartCumplimiento"></canvas></div></div>
+      </div>
+    </section>
+
+    <!-- ---------- SLA ---------- -->
+    <section id="section-sla" class="section">
+      <h1 class="section-title">SLA (columnas AM / AN)</h1>
+      <div class="chart-grid chart-grid--2">
+        <div class="card"><h3>Dentro vs Fuera de SLA</h3><div class="chart-box"><canvas id="chartSlaGauge"></canvas></div></div>
+        <div class="card"><h3>Distribución por rangos de tiempo</h3><div class="chart-box"><canvas id="chartSlaDist"></canvas></div></div>
+        <div class="card"><h3>Ranking ciudades (servicios con SLA)</h3><div class="chart-box"><canvas id="chartSlaCiudad"></canvas></div></div>
+        <div class="card"><h3>Ranking farmacias (servicios con SLA)</h3><div class="chart-box"><canvas id="chartSlaFarmacia"></canvas></div></div>
+        <div class="card card--full"><h3>Ranking especialidades (servicios con SLA)</h3><div class="chart-box"><canvas id="chartSlaEspecialidad"></canvas></div></div>
+      </div>
+    </section>
+
+    <!-- ---------- COBERTURA ---------- -->
+    <section id="section-cobertura" class="section">
+      <h1 class="section-title">Cobertura</h1>
+      <div class="card card--full">
+        <div class="map-toolbar">
+          <label>Nivel:
+            <select id="mapLevelSelect"><option value="ciudad">Ciudad</option><option value="municipio">Municipio</option></select>
+          </label>
+          <label>Métrica de color:
+            <select id="mapMetricSelect"><option value="cumplimiento">Cumplimiento</option><option value="total">Volumen</option></select>
+          </label>
+        </div>
+        <div id="mapCoverage" class="map-box"></div>
+      </div>
+    </section>
+
+    <!-- ---------- PERCÁPITA ---------- -->
+    <section id="section-percapita" class="section">
+      <h1 class="section-title">Percápita</h1>
+      <div class="chart-grid chart-grid--2">
+        <div class="card"><h3>Percápita mensual</h3><div class="chart-box"><canvas id="chartPercapitaMonthly"></canvas></div></div>
+        <div class="card"><h3>Percápita por ciudad</h3><div class="chart-box"><canvas id="chartPercapitaCity"></canvas></div></div>
+        <div class="card"><h3>Percápita por farmacia</h3><div class="chart-box"><canvas id="chartPercapitaFarmacia"></canvas></div></div>
+        <div class="card"><h3>Percápita vs. Servicios</h3><div class="chart-box"><canvas id="chartPercapitaVsServicios"></canvas></div></div>
+      </div>
+    </section>
+
+    <!-- ---------- PRODUCTIVIDAD ---------- -->
+    <section id="section-productividad" class="section">
+      <h1 class="section-title">Productividad</h1>
+      <div class="chart-grid chart-grid--1">
+        <div class="card card--full"><h3>Servicios atendidos por coordinador</h3><div class="chart-box chart-box--tall"><canvas id="chartProductivity2"></canvas></div></div>
+      </div>
+    </section>
+
+    <!-- ---------- ALERTAS ---------- -->
+    <section id="section-alertas" class="section">
+      <h1 class="section-title">Alertas</h1>
+      <div id="alertsList" class="alerts-list"></div>
+    </section>
+
+    <!-- ---------- DETALLE ---------- -->
+    <section id="section-detalle" class="section">
+      <h1 class="section-title">Detalle</h1>
+      <div class="card card--full table-card">
+        <div class="table-toolbar">
+          <input id="tableSearch" type="text" placeholder="Buscar en la tabla...">
+          <div class="table-toolbar__actions">
+            <button id="btnTableCSV" class="btn btn--ghost">Exportar CSV</button>
+            <button id="btnTableExcel" class="btn btn--ghost">Exportar Excel</button>
+            <button id="btnTablePrint" class="btn btn--ghost">Imprimir</button>
+          </div>
+        </div>
+        <div class="table-scroll">
+          <table id="dataTable">
+            <thead>
+              <tr>
+                <th data-sort="fecha">Fecha</th>
+                <th data-sort="ciudad">Ciudad</th>
+                <th data-sort="municipio">Municipio</th>
+                <th data-sort="farmacia">Farmacia</th>
+                <th data-sort="cliente">Cliente</th>
+                <th data-sort="canal">Canal</th>
+                <th data-sort="tipoServicio">Tipo Servicio</th>
+                <th data-sort="codEspecialidad">Especialidad</th>
+                <th data-sort="estado">Estado</th>
+                <th data-sort="tiempoReal">Tiempo</th>
+                <th data-sort="dentroSla">SLA</th>
+                <th data-sort="coordinador">Coordinador</th>
+              </tr>
+            </thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+        <div class="table-footer">
+          <span id="tableInfo"></span>
+          <div id="pagination" class="pagination"></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/data.js"></script>
+<script src="js/filters.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/map.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
