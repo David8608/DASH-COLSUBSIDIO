@@ -147,6 +147,18 @@ button { cursor: pointer; }
 .filter-dd__opt:hover { background: var(--grey-50); }
 .filter-dd__opt input { accent-color: var(--blue-600); }
 
+/* ================= SETUP BANNER ================= */
+.setup-banner {
+  display: flex; gap: 14px; align-items: flex-start;
+  background: var(--amber-50); border-bottom: 1px solid #FDE68A;
+  padding: 14px 24px; font-size: 13px; color: #92400E;
+}
+.setup-banner__icon { font-size: 20px; }
+.setup-banner__title { font-weight: 700; margin-bottom: 3px; }
+.setup-banner__msg { line-height: 1.5; }
+.setup-banner__msg a { color: #92400E; font-weight: 700; }
+.setup-banner__msg code { background: #FEF3C7; padding: 1px 6px; border-radius: 4px; font-family: var(--font-mono); }
+
 /* ================= LAYOUT ================= */
 .app-shell { display: flex; min-height: calc(100vh - var(--topbar-h) - var(--filters-h)); }
 .sidebar {
@@ -331,6 +343,14 @@ tbody tr:hover { background: var(--grey-50); }
 <div class="filters-wrap">
   <div id="filtersBar" class="filters-bar"></div>
   <button id="btnResetFilters" class="btn btn--text">Limpiar filtros</button>
+</div>
+
+<div id="setupBanner" class="setup-banner" style="display:none">
+  <div class="setup-banner__icon">⚙️</div>
+  <div class="setup-banner__body">
+    <div class="setup-banner__title">Falta un dato para conectar con Google Sheets</div>
+    <div id="setupBannerMsg" class="setup-banner__msg"></div>
+  </div>
 </div>
 
 <div class="app-shell">
@@ -719,10 +739,10 @@ const DataLayer = (() => {
   const CONFIG = {
     PUBLISH_TOKEN: '2PACX-1vTHQGXeJqcGN8E1WQd-s6Vh5k59CZuEgBX-FO6IUGGwG91c26pquxpBO9iRbdXxPQ',
     SHEETS: {
-      hoja1:     { label: 'Hoja 1 (Ene-May)', match: /^HOJA\s*1$/i, gid: null },
-      hoja2:     { label: 'Hoja 2 (Jun-Oct)', match: /^HOJA\s*2$/i, gid: null },
-      hoja3:     { label: 'Hoja 3 (Nov-Dic)', match: /^HOJA\s*3$/i, gid: null },
-      percapita: { label: 'Percápita', match: /PERC.?PITA/i, gid: null }
+      hoja1:     { label: 'Hoja 1 (Ene-May)', match: /^HOJA\s*1$/i, gid: 578940424 },
+      hoja2:     { label: 'Hoja 2 (Jun-Oct)', match: /^HOJA\s*2$/i, gid: 340587948 },
+      hoja3:     { label: 'Hoja 3 (Nov-Dic)', match: /^HOJA\s*3$/i, gid: 323368642 },
+      percapita: { label: 'Percápita', match: /PERC.?PITA/i, gid: 1298224280 }
     },
     EXCLUDE_SHEET: /VARIABLES/i,
     REFRESH_INTERVAL_MS: 5 * 60 * 1000, // 5 minutos
@@ -1157,25 +1177,32 @@ const ChartsModule = (() => {
 
   const registry = {};
 
-  Chart.defaults.font.family = "'Inter', -apple-system, sans-serif";
-  Chart.defaults.color = '#64748B';
-  Chart.defaults.plugins.legend.labels.usePointStyle = true;
-  Chart.defaults.plugins.legend.labels.boxWidth = 8;
+  try {
+    Chart.defaults.font.family = "'Inter', -apple-system, sans-serif";
+    Chart.defaults.color = '#64748B';
+    Chart.defaults.plugins.legend.labels.usePointStyle = true;
+    Chart.defaults.plugins.legend.labels.boxWidth = 8;
+  } catch (e) { console.warn('No se pudo aplicar el tema por defecto a Chart.js', e); }
 
   function upsert(id, type, data, options) {
-    const canvas = document.getElementById(id);
-    if (!canvas) return null;
-    if (registry[id]) registry[id].destroy();
-    registry[id] = new Chart(canvas, {
-      type, data,
-      options: Object.assign({
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: { duration: 400 },
-        plugins: { legend: { display: true } }
-      }, options || {})
-    });
-    return registry[id];
+    try {
+      const canvas = document.getElementById(id);
+      if (!canvas) return null;
+      if (registry[id]) { registry[id].destroy(); delete registry[id]; }
+      registry[id] = new Chart(canvas, {
+        type, data,
+        options: Object.assign({
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: { duration: 400 },
+          plugins: { legend: { display: true } }
+        }, options || {})
+      });
+      return registry[id];
+    } catch (e) {
+      console.error(`Error al renderizar el gráfico "${id}":`, e);
+      return null;
+    }
   }
 
   function groupCount(rows, keyFn) {
@@ -1574,24 +1601,36 @@ const MapModule = (() => {
     if (hadCache) renderAll();
 
     setStatus('loading');
+    let state;
     try {
       await DataLayer.loadAll();
-      const state = DataLayer.getState();
-      if (state.error === 'NO_DATA') {
-        setStatus('error', 'No se pudieron leer datos de Google Sheets. Verifica los GID configurados en js/data.js.');
-      } else {
-        setStatus('ok');
-      }
-      FiltersModule.init(state.rawRows, els.filtersBar, onFiltersChanged);
-      renderAll();
-      DataLayer.startAutoRefresh((newState) => {
-        FiltersModule.updateData(newState.rawRows);
-        renderAll();
-      });
+      state = DataLayer.getState();
     } catch (e) {
-      console.error(e);
-      setStatus('error', 'Error al conectar con Google Sheets. Revisa tu conexión o la configuración de publicación del Sheet.');
+      console.error('Fallo al descargar/parsear las hojas de Google Sheets:', e);
+      setStatus('error', 'Error al conectar con Google Sheets. Revisa tu conexión a internet.');
+      return;
     }
+
+    if (state.error === 'NO_DATA') {
+      const missing = Object.entries(state.gids).filter(([, v]) => !v && v !== 0).map(([k]) => k);
+      if (missing.length) {
+        setStatus('error', `Faltan los GID de: ${missing.join(', ')}.`);
+        showSetupBanner(missing);
+      } else {
+        setStatus('error', 'Las hojas se leyeron pero no se encontraron filas. Verifica que las pestañas tengan datos y encabezados en la primera fila.');
+        hideSetupBanner();
+      }
+    } else {
+      setStatus('ok');
+      hideSetupBanner();
+    }
+
+    safe('inicialización de filtros', () => FiltersModule.init(state.rawRows, els.filtersBar, onFiltersChanged));
+    renderAll();
+    safe('auto-actualización', () => DataLayer.startAutoRefresh((newState) => {
+      safe('actualización de filtros', () => FiltersModule.updateData(newState.rawRows));
+      renderAll();
+    }));
   }
 
   function cacheEls() {
@@ -1610,7 +1649,19 @@ const MapModule = (() => {
     els.navItems = document.querySelectorAll('.nav-item');
     els.mapMetricSelect = document.getElementById('mapMetricSelect');
     els.mapLevelSelect = document.getElementById('mapLevelSelect');
+    els.setupBanner = document.getElementById('setupBanner');
+    els.setupBannerMsg = document.getElementById('setupBannerMsg');
   }
+
+  function showSetupBanner(missing) {
+    if (!els.setupBanner) return;
+    const pubUrl = `https://docs.google.com/spreadsheets/d/e/${DataLayer.CONFIG.PUBLISH_TOKEN}/pubhtml`;
+    els.setupBannerMsg.innerHTML = `Abre <a href="${pubUrl}" target="_blank" rel="noopener">tu Google Sheet publicado</a>,
+      haz clic en cada pestaña (${missing.join(', ')}) y copia el número que aparece después de <code>#gid=</code> en la URL.
+      Luego pégalos en <code>js/data.js</code>, dentro de <code>CONFIG.SHEETS</code>, y vuelve a guardar el archivo.`;
+    els.setupBanner.style.display = 'flex';
+  }
+  function hideSetupBanner() { if (els.setupBanner) els.setupBanner.style.display = 'none'; }
 
   function wireStaticUI() {
     document.getElementById('btnFullscreen').addEventListener('click', toggleFullscreen);
@@ -1672,17 +1723,21 @@ const MapModule = (() => {
     });
   }
 
+  function safe(label, fn) {
+    try { fn(); } catch (e) { console.error(`Error en ${label}:`, e); }
+  }
+
   function renderAll() {
     const state = DataLayer.getState();
     if (state.lastUpdated) els.lastUpdated.textContent = Utils.formatDateTime(state.lastUpdated);
     filteredRows = getFilteredRows();
     const pcRows = getFilteredPercapita();
 
-    renderKPIs(filteredRows);
-    renderCharts(filteredRows, pcRows);
-    renderMap();
-    renderAlerts(filteredRows);
-    renderTable();
+    safe('KPIs', () => renderKPIs(filteredRows));
+    safe('gráficos', () => renderCharts(filteredRows, pcRows));
+    safe('mapa', () => renderMap());
+    safe('alertas', () => renderAlerts(filteredRows));
+    safe('tabla', () => renderTable());
   }
 
   /* ================= KPIs ================= */
