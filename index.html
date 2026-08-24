@@ -966,6 +966,7 @@ const DataLayer = (() => {
         download: true,
         header: true,
         skipEmptyLines: true,
+        worker: true, // parsea en un hilo aparte: no bloquea la interfaz con hojas grandes
         transformHeader: h => h.trim(),
         complete: results => resolve(results),
         error: err => reject(err)
@@ -1068,20 +1069,26 @@ const DataLayer = (() => {
     return { lat: null, lng: null };
   }
 
-  function classifyEstado(estadoRaw) {
-    const s = Utils.normalize(estadoRaw);
-    if (!s) return 'SIN_DATO';
-    if (s.includes('CANCEL') || s.includes('ANULA') || s.includes('RECHAZ') || s.includes('NO EFECTIV') || s.includes('FALLID') || s.includes('DEVOLU') || s.includes('DEVUEL') || s.includes('NO ENTREG')) return 'CANCELADO';
-    if (s.includes('NOVEDAD') || s.includes('PENDIENTE') || s.includes('REPROGRAM')) return 'NOVEDAD';
-    if (s.includes('EFECTIV') || s.includes('ENTREG') || s.includes('COMPLET') || s.includes('EXITOS') || s.includes('FINALIZ') || s.includes('CERRADO') || s.includes('OK')) return 'EFECTIVO';
-    return 'OTRO';
-  }
-
-  // Valores de "novedad" que en realidad significan "sin novedad" (para excluir del detalle por tipo de novedad)
+  // Caché: la columna "estado" suele repetir muy pocos valores distintos en decenas de miles
+  // de filas (ej. "ENTREGADO", "CERRADO CON NOVEDAD"). Clasificar de una vez por valor único,
+  // en vez de una vez por fila, evita cientos de miles de operaciones de texto redundantes.
+  const estadoInfoCache = new Map();
   const NOVEDAD_VACIA = /^(NINGUNA|NINGUNO|SIN NOVEDAD|N\/A|NA|NONE)$/i;
-  function esNovedadReal(estadoRaw) {
+  function resolveEstadoInfo(estadoRaw) {
+    const key = estadoRaw || '';
+    let info = estadoInfoCache.get(key);
+    if (info) return info;
     const s = Utils.normalize(estadoRaw);
-    return s && !NOVEDAD_VACIA.test(s.trim());
+    let estado;
+    if (!s) estado = 'SIN_DATO';
+    else if (s.includes('CANCEL') || s.includes('ANULA') || s.includes('RECHAZ') || s.includes('NO EFECTIV') || s.includes('FALLID') || s.includes('DEVOLU') || s.includes('DEVUEL') || s.includes('NO ENTREG')) estado = 'CANCELADO';
+    else if (s.includes('NOVEDAD') || s.includes('PENDIENTE') || s.includes('REPROGRAM')) estado = 'NOVEDAD';
+    else if (s.includes('EFECTIV') || s.includes('ENTREG') || s.includes('COMPLET') || s.includes('EXITOS') || s.includes('FINALIZ') || s.includes('CERRADO') || s.includes('OK')) estado = 'EFECTIVO';
+    else estado = 'OTRO';
+    const esNovedadReal = estado === 'NOVEDAD' && s && !NOVEDAD_VACIA.test(s.trim());
+    info = { estado, esNovedadReal };
+    estadoInfoCache.set(key, info);
+    return info;
   }
 
   /* Límites de plausibilidad para tiempos (minutos). Fuera de este rango se descarta como dato inválido,
@@ -1107,7 +1114,10 @@ const DataLayer = (() => {
     state.diagnostics.rowCounts[sheetTag] = parsed.data.length;
     state.diagnostics.coordSamples[sheetTag] = [];
 
-    const out = parsed.data.map(row => {
+    const out = [];
+    const n = parsed.data.length;
+    for (let i = 0; i < n; i++) {
+      const row = parsed.data[i];
       const fecha = map.FECHA ? Utils.parseDate(row[map.FECHA]) : null;
       const anio = map.ANIO ? Utils.parseNumber(row[map.ANIO]) : (fecha ? fecha.getFullYear() : null);
       const mesNum = map.MES ? (Utils.parseNumber(row[map.MES]) || monthNameToNum(row[map.MES])) : (fecha ? fecha.getMonth() + 1 : null);
@@ -1130,7 +1140,12 @@ const DataLayer = (() => {
         state.diagnostics.coordSamples[sheetTag].push({ rawX, rawY, resolved: lat !== null ? `${lat}, ${lng}` : '(no resuelto)' });
       }
 
-      return {
+      const estadoInfo = resolveEstadoInfo(estadoRaw);
+      const ciudad = map.CIUDAD ? (row[map.CIUDAD] || 'Sin dato').trim() : 'Sin dato';
+
+      if (ciudad === 'Sin dato' && !fecha && estadoInfo.estado === 'SIN_DATO') continue; // descarta filas totalmente vacías
+
+      out.push({
         _sheet: sheetTag,
         fecha,
         anio: anio || null,
@@ -1139,22 +1154,22 @@ const DataLayer = (() => {
         canal: map.CANAL ? (row[map.CANAL] || 'Sin dato').trim() : 'Sin dato',
         tipoServicio: map.TIPO_SERVICIO ? (row[map.TIPO_SERVICIO] || 'Sin dato').trim() : 'Sin dato',
         cenLog: map.CENLOG ? (row[map.CENLOG] || 'Sin dato').toString().trim() : 'Sin dato',
-        ciudad: map.CIUDAD ? (row[map.CIUDAD] || 'Sin dato').trim() : 'Sin dato',
+        ciudad,
         municipio: map.MUNICIPIO ? (row[map.MUNICIPIO] || 'Sin dato').trim() : 'Sin dato',
         farmacia: map.FARMACIA ? (row[map.FARMACIA] || 'Sin dato').trim() : 'Sin dato',
         puntoVenta: map.PUNTO_VENTA ? (row[map.PUNTO_VENTA] || 'Sin dato').toString().trim() : 'Sin dato',
         cliente: map.CLIENTE ? (row[map.CLIENTE] || 'Sin dato').trim() : 'Sin dato',
         coordinador: map.COORDINADOR ? (row[map.COORDINADOR] || 'Sin dato').trim() : 'Sin dato',
-        estado: classifyEstado(estadoRaw),
+        estado: estadoInfo.estado,
         estadoRaw: estadoRaw || '',
-        esNovedadReal: classifyEstado(estadoRaw) === 'NOVEDAD' && esNovedadReal(estadoRaw),
+        esNovedadReal: estadoInfo.esNovedadReal,
         tiempoCreacion: tCreacion,
         tiempoAceptacion: tAceptacion,
         dentroSla: (tAceptacion !== null && tAceptacion !== undefined) ? (tAceptacion <= CONFIG.SLA_META_DEFAULT) : null,
         lat, lng,
         valor: map.VALOR ? Utils.parseNumber(row[map.VALOR]) : null
-      };
-    }).filter(r => r.ciudad !== 'Sin dato' || r.fecha || r.estado !== 'SIN_DATO'); // descarta filas totalmente vacías
+      });
+    }
     return out;
   }
 
@@ -1219,7 +1234,12 @@ const DataLayer = (() => {
     state.ready = true;
     state.error = (rows.length === 0) ? 'NO_DATA' : null;
 
-    Utils.lsSet('dashboard_cache_v1', { rows: state.rawRows, percapita: state.percapitaRows, ts: state.lastUpdated });
+    const CACHE_ROW_LIMIT = 15000; // por encima de esto, JSON.stringify + localStorage casi siempre supera la cuota del navegador y falla sin avisar — mejor no perder tiempo intentándolo
+    if (state.rawRows.length + state.percapitaRows.length <= CACHE_ROW_LIMIT) {
+      Utils.lsSet('dashboard_cache_v1', { rows: state.rawRows, percapita: state.percapitaRows, ts: state.lastUpdated });
+    } else {
+      console.info(`Dataset grande (${state.rawRows.length} filas): se omite la caché local para no perder tiempo serializando datos que igual no caben en localStorage.`);
+    }
     return state;
   }
 
