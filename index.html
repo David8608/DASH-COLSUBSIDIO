@@ -3,12 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard Operativo — Última Milla</title>
+<title>Operación Colsubsidio NC</title>
 <meta name="description" content="Dashboard ejecutivo y operativo de última milla, conectado en vivo a Google Sheets.">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <style>
 /* =========================================================================
    styles.css — Sistema de diseño del Dashboard Operativo
@@ -119,6 +118,13 @@ button { cursor: pointer; }
   padding: 10px 20px; min-height: var(--filters-h);
 }
 .filters-bar { display: flex; gap: 8px; flex-wrap: wrap; flex: 1; }
+.filter-date {
+  display: flex; gap: 10px; align-items: center; background: var(--grey-50);
+  border: 1px solid var(--grey-200); border-radius: var(--radius-sm); padding: 6px 10px;
+}
+.filter-date label { font-size: 11.5px; font-weight: 600; color: var(--grey-500); display: flex; align-items: center; gap: 5px; }
+.filter-date input[type="date"] { border: 1px solid var(--grey-200); border-radius: 6px; padding: 4px 6px; font-size: 12px; color: var(--grey-900); }
+
 .filter-dd { position: relative; }
 .filter-dd__btn {
   display: flex; align-items: center; gap: 6px;
@@ -220,6 +226,10 @@ body.sidebar-collapsed .nav-item { justify-content: center; }
 .card--full { grid-column: 1 / -1; }
 .chart-box { position: relative; height: 260px; }
 .chart-box--tall { height: 520px; }
+.chart-box--scrollx { height: 300px; overflow-x: auto; overflow-y: hidden; }
+.chart-box--scrollx .chart-inner-wide { height: 100%; min-width: 100%; position: relative; }
+.chart-box--scrolly { height: 420px; overflow-y: auto; overflow-x: hidden; }
+.chart-box--scrolly .chart-inner-tall { width: 100%; min-height: 100%; position: relative; }
 
 /* ================= MAPA ================= */
 .map-toolbar { display: flex; gap: 18px; margin-bottom: 12px; font-size: 12.5px; color: var(--grey-700); font-weight: 600; }
@@ -311,8 +321,8 @@ tbody tr:hover { background: var(--grey-50); }
   <div class="topbar__brand">
     <span class="topbar__logo">🚚</span>
     <div>
-      <div class="topbar__title">Dashboard Operativo</div>
-      <div class="topbar__subtitle">Última Milla — Colsubsidio</div>
+      <div class="topbar__title">Operación Colsubsidio NC</div>
+      <div class="topbar__subtitle">Torre de Control — Última Milla</div>
     </div>
   </div>
 
@@ -365,6 +375,7 @@ tbody tr:hover { background: var(--grey-50); }
     <div class="nav-item" data-section="productividad"><span>📈</span>Productividad</div>
     <div class="nav-item" data-section="alertas"><span>⚠</span>Alertas <span id="alertsBadge" class="nav-badge"></span></div>
     <div class="nav-item" data-section="detalle"><span>📋</span>Detalle</div>
+    <div class="nav-item" data-section="diagnostico"><span>🔍</span>Diagnóstico</div>
   </nav>
 
   <!-- ===================== CONTENIDO ===================== -->
@@ -383,11 +394,28 @@ tbody tr:hover { background: var(--grey-50); }
     <!-- ---------- INDICADORES ---------- -->
     <section id="section-indicadores" class="section">
       <h1 class="section-title">Indicadores</h1>
+      <div id="kpiGridIndicadores" class="kpi-grid"></div>
+
       <div class="chart-grid chart-grid--2">
-        <div class="card"><h3>Servicios por canal</h3><div class="chart-box"><canvas id="chartByChannel"></canvas></div></div>
-        <div class="card"><h3>Servicios por tipo de canal</h3><div class="chart-box"><canvas id="chartByChannelType"></canvas></div></div>
-        <div class="card"><h3>Servicios por tipo de servicio</h3><div class="chart-box"><canvas id="chartByServiceType"></canvas></div></div>
-        <div class="card"><h3>Servicios por especialidad</h3><div class="chart-box"><canvas id="chartBySpecialty"></canvas></div></div>
+        <div class="card"><h3>Top ciudades por volumen</h3><div class="chart-box"><canvas id="chartTopCiudadesVolumen"></canvas></div></div>
+        <div class="card"><h3>Efectividad por ciudad</h3><div class="chart-box"><canvas id="chartEfectividadCiudad"></canvas></div></div>
+
+        <div class="card"><h3>Participación por tipo de servicio</h3><div class="chart-box"><canvas id="chartTipoServicioTorta"></canvas></div></div>
+        <div class="card"><h3>Efectividad por tipo de servicio</h3><div class="chart-box"><canvas id="chartTipoServicioEfectividad"></canvas></div></div>
+
+        <div class="card"><h3>Detalle por tipo de novedad</h3><div class="chart-box"><canvas id="chartNovedadTorta"></canvas></div></div>
+        <div class="card"><h3>Top ciudades con más novedades</h3><div class="chart-box"><canvas id="chartNovedadCiudad"></canvas></div></div>
+      </div>
+
+      <div class="chart-grid chart-grid--1">
+        <div class="card card--full">
+          <h3>Puntos de venta — volumen de servicios (todos)</h3>
+          <div class="chart-box chart-box--scrollx"><div id="wrapPuntoVentaVolumen" class="chart-inner-wide"><canvas id="chartPuntoVentaVolumen"></canvas></div></div>
+        </div>
+        <div class="card card--full">
+          <h3>Puntos de venta — efectividad (todos)</h3>
+          <div class="chart-box chart-box--scrolly"><div id="wrapPuntoVentaEfectividad" class="chart-inner-tall"><canvas id="chartPuntoVentaEfectividad"></canvas></div></div>
+        </div>
       </div>
     </section>
 
@@ -395,6 +423,8 @@ tbody tr:hover { background: var(--grey-50); }
     <section id="section-operacion" class="section">
       <h1 class="section-title">Operación</h1>
       <div class="chart-grid chart-grid--2">
+        <div class="card"><h3>Servicios por canal</h3><div class="chart-box"><canvas id="chartByChannel"></canvas></div></div>
+        <div class="card"><h3>Servicios por tipo de canal</h3><div class="chart-box"><canvas id="chartByChannelType"></canvas></div></div>
         <div class="card"><h3>Servicios por ciudad</h3><div class="chart-box"><canvas id="chartByCity"></canvas></div></div>
         <div class="card"><h3>Servicios por municipio</h3><div class="chart-box"><canvas id="chartByMunicipality"></canvas></div></div>
         <div class="card"><h3>Servicios por hora</h3><div class="chart-box"><canvas id="chartByHour"></canvas></div></div>
@@ -405,15 +435,20 @@ tbody tr:hover { background: var(--grey-50); }
       </div>
     </section>
 
-    <!-- ---------- SLA ---------- -->
+    <!-- ---------- SLA / TIEMPOS ---------- -->
     <section id="section-sla" class="section">
-      <h1 class="section-title">SLA (columnas AM / AN)</h1>
+      <h1 class="section-title">Tiempos (columnas AM / AN)</h1>
       <div class="chart-grid chart-grid--2">
-        <div class="card"><h3>Dentro vs Fuera de SLA</h3><div class="chart-box"><canvas id="chartSlaGauge"></canvas></div></div>
+        <div class="card"><h3>Tiempo promedio por mes — Creación / Alistamiento</h3><div class="chart-box"><canvas id="chartTiempoCreacionMes"></canvas></div></div>
+        <div class="card"><h3>Tiempo promedio por mes — Aceptación / Entrega</h3><div class="chart-box"><canvas id="chartTiempoAceptacionMes"></canvas></div></div>
+
+        <div class="card"><h3>Tiempo por ciudad — Alistamiento (mayor a menor)</h3><div class="chart-box"><canvas id="chartTiempoCreacionCiudad"></canvas></div></div>
+        <div class="card"><h3>Tiempo por ciudad — Entrega (mayor a menor)</h3><div class="chart-box"><canvas id="chartTiempoAceptacionCiudad"></canvas></div></div>
+
+        <div class="card card--full"><h3>Tiempos por tipo de servicio</h3><div class="chart-box"><canvas id="chartTiempoTipoServicio"></canvas></div></div>
+
+        <div class="card"><h3>Dentro vs Fuera de SLA (tiempo de entrega)</h3><div class="chart-box"><canvas id="chartSlaGauge"></canvas></div></div>
         <div class="card"><h3>Distribución por rangos de tiempo</h3><div class="chart-box"><canvas id="chartSlaDist"></canvas></div></div>
-        <div class="card"><h3>Ranking ciudades (servicios con SLA)</h3><div class="chart-box"><canvas id="chartSlaCiudad"></canvas></div></div>
-        <div class="card"><h3>Ranking farmacias (servicios con SLA)</h3><div class="chart-box"><canvas id="chartSlaFarmacia"></canvas></div></div>
-        <div class="card card--full"><h3>Ranking especialidades (servicios con SLA)</h3><div class="chart-box"><canvas id="chartSlaEspecialidad"></canvas></div></div>
       </div>
     </section>
 
@@ -477,13 +512,14 @@ tbody tr:hover { background: var(--grey-50); }
                 <th data-sort="fecha">Fecha</th>
                 <th data-sort="ciudad">Ciudad</th>
                 <th data-sort="municipio">Municipio</th>
-                <th data-sort="farmacia">Farmacia</th>
+                <th data-sort="puntoVenta">Punto de Venta</th>
+                <th data-sort="cenLog">CenLog</th>
                 <th data-sort="cliente">Cliente</th>
                 <th data-sort="canal">Canal</th>
                 <th data-sort="tipoServicio">Tipo Servicio</th>
-                <th data-sort="codEspecialidad">Especialidad</th>
                 <th data-sort="estado">Estado</th>
-                <th data-sort="tiempoReal">Tiempo</th>
+                <th data-sort="tiempoCreacion">T. Creación</th>
+                <th data-sort="tiempoAceptacion">T. Entrega</th>
                 <th data-sort="dentroSla">SLA</th>
                 <th data-sort="coordinador">Coordinador</th>
               </tr>
@@ -498,12 +534,72 @@ tbody tr:hover { background: var(--grey-50); }
       </div>
     </section>
 
+    <!-- ---------- DIAGNÓSTICO ---------- -->
+    <section id="section-diagnostico" class="section">
+      <h1 class="section-title">Diagnóstico de columnas</h1>
+      <p style="color:var(--grey-500);font-size:13px;margin-bottom:14px;">
+        Si algún KPI o gráfico se ve incorrecto, comparte una captura de esta pantalla —
+        muestra exactamente qué columna de tu Google Sheet se está usando para cada campo.
+      </p>
+      <div id="diagnosticoBox" class="card card--full" style="font-family:var(--font-mono);font-size:12px;white-space:pre-wrap;line-height:1.7;"></div>
+    </section>
+
   </main>
 </div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script>
+  // Cargador resiliente: intenta varias CDN en cascada para Chart.js, Leaflet, PapaParse y Leaflet.heat.
+  // Si una CDN está bloqueada o caída, prueba automáticamente con la siguiente.
+  window.__libsReady = (function () {
+    function loadScript(urls, i) {
+      i = i || 0;
+      return new Promise((resolve) => {
+        if (i >= urls.length) { console.error('No se pudo cargar ninguna fuente para:', urls[0]); return resolve(false); }
+        const s = document.createElement('script');
+        s.src = urls[i];
+        s.onload = () => resolve(true);
+        s.onerror = () => resolve(loadScript(urls, i + 1));
+        document.head.appendChild(s);
+      });
+    }
+    function loadCSS(urls, i) {
+      i = i || 0;
+      return new Promise((resolve) => {
+        if (i >= urls.length) return resolve(false);
+        const l = document.createElement('link');
+        l.rel = 'stylesheet'; l.href = urls[i];
+        l.onload = () => resolve(true);
+        l.onerror = () => resolve(loadCSS(urls, i + 1));
+        document.head.appendChild(l);
+      });
+    }
+    return Promise.all([
+      loadCSS([
+        'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css',
+        'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css',
+        'https://unpkg.com/leaflet@1.9.4/dist/leaflet.min.css'
+      ]),
+      loadScript([
+        'https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js',
+        'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js',
+        'https://unpkg.com/chart.js@4.4.4/dist/chart.umd.min.js'
+      ]),
+      loadScript([
+        'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js',
+        'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js',
+        'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
+      ]).then(ok => ok && loadScript([
+        'https://cdn.jsdelivr.net/npm/leaflet.heat@0.2.0/dist/leaflet-heat.js',
+        'https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js'
+      ])),
+      loadScript([
+        'https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js',
+        'https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js',
+        'https://unpkg.com/papaparse@5.4.1/papaparse.min.js'
+      ])
+    ]);
+  })();
+</script>
 <script>
 /* =========================================================================
    utils.js — Funciones utilitarias compartidas por todo el dashboard
@@ -762,7 +858,8 @@ const DataLayer = (() => {
     lastUpdated: null,
     gids: { hoja1: null, hoja2: null, hoja3: null, percapita: null },
     ready: false,
-    error: null
+    error: null,
+    diagnostics: { fieldMaps: {}, headers: {}, estadoCounts: {}, tiempoDescartados: 0, rowCounts: {} }
   };
 
   /* ---------- Auto-detección de GIDs desde el pubhtml publicado ---------- */
@@ -805,29 +902,31 @@ const DataLayer = (() => {
     });
   }
 
-  /* ---------- Mapeo flexible de columnas ---------- */
-  const FIELD_CANDIDATES = {
+  /* ---------- Mapeo de columnas ---------- */
+  // Campos que se resuelven por NOMBRE de encabezado (tolerante a tildes/mayúsculas)
+  const NAME_CANDIDATES = {
     FECHA: ['FECHA', 'FECHA SERVICIO', 'FECHA DE SERVICIO', 'FECHA SOLICITUD', 'FECHA ASIGNACION'],
     ANIO: ['ANO', 'ANIO'],
     MES: ['MES'],
-    TIPO_CANAL: ['TIPO CANAL', 'TIPO DE CANAL'],
     CANAL: ['CANAL'],
-    CIUDAD: ['CIUDAD'],
     MUNICIPIO: ['MUNICIPIO'],
     FARMACIA: ['FARMACIA', 'PUNTO', 'SEDE', 'DROGUERIA'],
     CLIENTE: ['CLIENTE'],
     COORDINADOR: ['COORDINADOR', 'COORDINADOR OPERATIVO', 'COORDINADOR OPERACIONES'],
     ESTADO: ['ESTADO', 'ESTADO SERVICIO', 'ESTADO DEL SERVICIO', 'RESULTADO'],
-    TIPO_SERVICIO: ['TIPO SERVICIO', 'TIPO DE SERVICIO'],
-    COD_ESPECIALIDAD: ['COD ESPECIALIDAD', 'CODIGO ESPECIALIDAD', 'COD. ESPECIALIDAD', 'ESPECIALIDAD'],
+    PUNTO_VENTA: ['ESPECIALIDAD', 'PUNTO DE VENTA', 'PUNTO VENTA', 'NOMBRE PUNTO'],
     VALOR: ['VALOR SERVICIO', 'VALOR', 'TICKET']
   };
-  // Fallback por letra de columna explícitamente indicada por el usuario
-  const LETTER_FALLBACK = {
-    TIPO_SERVICIO: 'X',
-    COD_ESPECIALIDAD: 'Z',
-    TIEMPO_REAL: 'AM',
-    TIEMPO_SLA: 'AN'
+  // Campos confirmados por letra exacta de columna (prioridad sobre el nombre del encabezado)
+  const LETTER_PRIORITY = {
+    CIUDAD: { letter: 'AK', names: ['CIUDAD'] },
+    TIPO_SERVICIO: { letter: 'X', names: ['TIPO SERVICIO', 'TIPO DE SERVICIO'] },
+    TIPO_CANAL: { letter: 'AF', names: ['TIPO CANAL', 'TIPO DE CANAL'] },
+    CENLOG: { letter: 'Z', names: ['CENLOG', 'CENTRO LOGISTICO', 'CEN LOG'] },
+    TIEMPO_CREACION: { letter: 'AM', names: ['TIEMPO CREACION', 'TIEMPO ALISTAMIENTO'] },
+    TIEMPO_ACEPTACION: { letter: 'AN', names: ['TIEMPO ACEPTACION', 'TIEMPO ENTREGA'] },
+    LAT: { letter: 'AA', names: ['LATITUD', 'LAT'] },
+    LNG: { letter: 'AB', names: ['LONGITUD', 'LON', 'LNG'] }
   };
 
   function buildHeaderIndex(headers) {
@@ -836,50 +935,89 @@ const DataLayer = (() => {
     return idx;
   }
 
-  function resolveField(field, headers, headerIdxMap) {
-    const candidates = FIELD_CANDIDATES[field] || [];
+  function resolveByName(candidates, headers, headerIdxMap) {
     for (const c of candidates) {
       const key = Utils.normalize(c);
       if (key in headerIdxMap) return headers[headerIdxMap[key]];
     }
-    if (LETTER_FALLBACK[field]) {
-      const i = Utils.colLetterToIndex(LETTER_FALLBACK[field]);
-      if (i >= 0 && i < headers.length) return headers[i];
-    }
     return null;
+  }
+
+  function resolveByLetterThenName(letter, names, headers, headerIdxMap) {
+    if (letter) {
+      const i = Utils.colLetterToIndex(letter);
+      if (i >= 0 && i < headers.length && headers[i]) return headers[i];
+    }
+    return resolveByName(names, headers, headerIdxMap);
   }
 
   function buildFieldMap(headers) {
     const headerIdxMap = buildHeaderIndex(headers);
     const map = {};
-    Object.keys(FIELD_CANDIDATES).forEach(f => { map[f] = resolveField(f, headers, headerIdxMap); });
-    map.TIEMPO_REAL = resolveField('TIEMPO_REAL', headers, headerIdxMap) || headers[Utils.colLetterToIndex(LETTER_FALLBACK.TIEMPO_REAL)] || null;
-    map.TIEMPO_SLA = resolveField('TIEMPO_SLA', headers, headerIdxMap) || headers[Utils.colLetterToIndex(LETTER_FALLBACK.TIEMPO_SLA)] || null;
+    Object.keys(NAME_CANDIDATES).forEach(f => { map[f] = resolveByName(NAME_CANDIDATES[f], headers, headerIdxMap); });
+    Object.keys(LETTER_PRIORITY).forEach(f => {
+      const { letter, names } = LETTER_PRIORITY[f];
+      map[f] = resolveByLetterThenName(letter, names, headers, headerIdxMap);
+    });
     return map;
   }
 
   function classifyEstado(estadoRaw) {
     const s = Utils.normalize(estadoRaw);
     if (!s) return 'SIN_DATO';
-    if (s.includes('CANCEL')) return 'CANCELADO';
-    if (s.includes('NOVEDAD')) return 'NOVEDAD';
-    if (s.includes('EFECTIV') || s.includes('ENTREG') || s.includes('COMPLET') || s.includes('EXITOS') || s.includes('FINALIZ')) return 'EFECTIVO';
+    if (s.includes('CANCEL') || s.includes('ANULA') || s.includes('RECHAZ') || s.includes('NO EFECTIV') || s.includes('FALLID') || s.includes('DEVOLU') || s.includes('DEVUEL') || s.includes('NO ENTREG')) return 'CANCELADO';
+    if (s.includes('NOVEDAD') || s.includes('PENDIENTE') || s.includes('REPROGRAM')) return 'NOVEDAD';
+    if (s.includes('EFECTIV') || s.includes('ENTREG') || s.includes('COMPLET') || s.includes('EXITOS') || s.includes('FINALIZ') || s.includes('CERRADO') || s.includes('OK')) return 'EFECTIVO';
     return 'OTRO';
+  }
+
+  // Valores de "novedad" que en realidad significan "sin novedad" (para excluir del detalle por tipo de novedad)
+  const NOVEDAD_VACIA = /^(NINGUNA|NINGUNO|SIN NOVEDAD|N\/A|NA|NONE)$/i;
+  function esNovedadReal(estadoRaw) {
+    const s = Utils.normalize(estadoRaw);
+    return s && !NOVEDAD_VACIA.test(s.trim());
+  }
+
+  /* Límites de plausibilidad para tiempos (minutos). Fuera de este rango se descarta como dato inválido,
+     sin recalcular ni modificar el valor original — solo se excluye de promedios para no distorsionar KPIs. */
+  const TIEMPO_MIN_VALIDO = 0;
+  const TIEMPO_MAX_VALIDO = 60 * 24 * 3; // hasta 3 días; ajustar en caso de operaciones con tiempos mayores
+  function clampTiempo(mins) {
+    if (mins === null || mins === undefined || isNaN(mins)) return null;
+    if (mins < TIEMPO_MIN_VALIDO || mins > TIEMPO_MAX_VALIDO) return null;
+    return mins;
   }
 
   /* ---------- Normaliza filas crudas de una hoja al esquema unificado ---------- */
   function normalizeRows(parsed, sheetTag) {
-    if (!parsed || !parsed.data || !parsed.data.length) return [];
+    if (!parsed || !parsed.data || !parsed.data.length) {
+      state.diagnostics.rowCounts[sheetTag] = 0;
+      return [];
+    }
     const headers = parsed.meta && parsed.meta.fields ? parsed.meta.fields : Object.keys(parsed.data[0]);
     const map = buildFieldMap(headers);
+    state.diagnostics.fieldMaps[sheetTag] = map;
+    state.diagnostics.headers[sheetTag] = headers;
+    state.diagnostics.rowCounts[sheetTag] = parsed.data.length;
 
-    return parsed.data.map(row => {
+    const out = parsed.data.map(row => {
       const fecha = map.FECHA ? Utils.parseDate(row[map.FECHA]) : null;
       const anio = map.ANIO ? Utils.parseNumber(row[map.ANIO]) : (fecha ? fecha.getFullYear() : null);
       const mesNum = map.MES ? (Utils.parseNumber(row[map.MES]) || monthNameToNum(row[map.MES])) : (fecha ? fecha.getMonth() + 1 : null);
       const estadoRaw = map.ESTADO ? row[map.ESTADO] : '';
-      const tReal = map.TIEMPO_REAL ? Utils.parseTimeToMinutes(row[map.TIEMPO_REAL]) : null;
-      const tSla = map.TIEMPO_SLA ? Utils.parseTimeToMinutes(row[map.TIEMPO_SLA]) : null;
+      if (estadoRaw) {
+        const key = String(estadoRaw).trim();
+        state.diagnostics.estadoCounts[key] = (state.diagnostics.estadoCounts[key] || 0) + 1;
+      }
+      const rawTCreacion = map.TIEMPO_CREACION ? Utils.parseTimeToMinutes(row[map.TIEMPO_CREACION]) : null;
+      const rawTAceptacion = map.TIEMPO_ACEPTACION ? Utils.parseTimeToMinutes(row[map.TIEMPO_ACEPTACION]) : null;
+      const tCreacion = clampTiempo(rawTCreacion);
+      const tAceptacion = clampTiempo(rawTAceptacion);
+      if (rawTCreacion !== null && rawTCreacion !== undefined && tCreacion === null) state.diagnostics.tiempoDescartados++;
+      if (rawTAceptacion !== null && rawTAceptacion !== undefined && tAceptacion === null) state.diagnostics.tiempoDescartados++;
+
+      const lat = map.LAT ? Utils.parseNumber(row[map.LAT]) : null;
+      const lng = map.LNG ? Utils.parseNumber(row[map.LNG]) : null;
 
       return {
         _sheet: sheetTag,
@@ -889,20 +1027,25 @@ const DataLayer = (() => {
         tipoCanal: map.TIPO_CANAL ? (row[map.TIPO_CANAL] || 'Sin dato').trim() : 'Sin dato',
         canal: map.CANAL ? (row[map.CANAL] || 'Sin dato').trim() : 'Sin dato',
         tipoServicio: map.TIPO_SERVICIO ? (row[map.TIPO_SERVICIO] || 'Sin dato').trim() : 'Sin dato',
-        codEspecialidad: map.COD_ESPECIALIDAD ? (row[map.COD_ESPECIALIDAD] || 'Sin dato').toString().trim() : 'Sin dato',
+        cenLog: map.CENLOG ? (row[map.CENLOG] || 'Sin dato').toString().trim() : 'Sin dato',
         ciudad: map.CIUDAD ? (row[map.CIUDAD] || 'Sin dato').trim() : 'Sin dato',
         municipio: map.MUNICIPIO ? (row[map.MUNICIPIO] || 'Sin dato').trim() : 'Sin dato',
         farmacia: map.FARMACIA ? (row[map.FARMACIA] || 'Sin dato').trim() : 'Sin dato',
+        puntoVenta: map.PUNTO_VENTA ? (row[map.PUNTO_VENTA] || 'Sin dato').toString().trim() : 'Sin dato',
         cliente: map.CLIENTE ? (row[map.CLIENTE] || 'Sin dato').trim() : 'Sin dato',
         coordinador: map.COORDINADOR ? (row[map.COORDINADOR] || 'Sin dato').trim() : 'Sin dato',
         estado: classifyEstado(estadoRaw),
         estadoRaw: estadoRaw || '',
-        tiempoReal: tReal,
-        tiempoSla: (tSla === null || tSla === undefined) ? CONFIG.SLA_META_DEFAULT : tSla,
-        dentroSla: (tReal !== null && tReal !== undefined) ? (tReal <= ((tSla === null || tSla === undefined) ? CONFIG.SLA_META_DEFAULT : tSla)) : null,
+        esNovedadReal: classifyEstado(estadoRaw) === 'NOVEDAD' && esNovedadReal(estadoRaw),
+        tiempoCreacion: tCreacion,
+        tiempoAceptacion: tAceptacion,
+        dentroSla: (tAceptacion !== null && tAceptacion !== undefined) ? (tAceptacion <= CONFIG.SLA_META_DEFAULT) : null,
+        lat: (lat !== null && lat >= -5 && lat <= 14) ? lat : null,   // rango plausible de latitud en Colombia
+        lng: (lng !== null && lng >= -83 && lng <= -65) ? lng : null, // rango plausible de longitud en Colombia
         valor: map.VALOR ? Utils.parseNumber(row[map.VALOR]) : null
       };
     }).filter(r => r.ciudad !== 'Sin dato' || r.fecha || r.estado !== 'SIN_DATO'); // descarta filas totalmente vacías
+    return out;
   }
 
   function monthNameToNum(name) {
@@ -1002,18 +1145,17 @@ const DataLayer = (() => {
 const FiltersModule = (() => {
 
   const FIELDS = [
-    { key: 'anio', label: 'Año', accessor: r => r.anio },
-    { key: 'mes', label: 'Mes', accessor: r => r.mes, display: v => Utils.MESES[v - 1] || v, sortNumeric: true },
     { key: 'tipoCanal', label: 'Tipo Canal', accessor: r => r.tipoCanal },
     { key: 'canal', label: 'Canal', accessor: r => r.canal },
     { key: 'tipoServicio', label: 'Tipo Servicio', accessor: r => r.tipoServicio },
-    { key: 'codEspecialidad', label: 'Cod. Especialidad', accessor: r => r.codEspecialidad },
+    { key: 'cenLog', label: 'CenLog', accessor: r => r.cenLog },
     { key: 'ciudad', label: 'Ciudad', accessor: r => r.ciudad },
     { key: 'municipio', label: 'Municipio', accessor: r => r.municipio },
-    { key: 'farmacia', label: 'Farmacia', accessor: r => r.farmacia },
-    { key: 'cliente', label: 'Cliente', accessor: r => r.cliente },
-    { key: 'coordinador', label: 'Coordinador', accessor: r => r.coordinador }
+    { key: 'puntoVenta', label: 'Punto de Venta', accessor: r => r.puntoVenta },
+    { key: 'novedadTipo', label: 'Tipo de Novedad', accessor: r => r.esNovedadReal ? r.estadoRaw : null }
   ];
+
+  let dateRange = { start: null, end: null }; // yyyy-mm-dd strings
 
   let activeFilters = {};   // key -> Set de valores seleccionados (vacío = todos)
   let allRows = [];
@@ -1046,11 +1188,25 @@ const FiltersModule = (() => {
 
   function render(preserveOpen) {
     container.innerHTML = '';
+    container.appendChild(buildDateRange());
     const currentlyFiltered = applyFilters(allRows, null); // para opciones "cascada" básicas
     FIELDS.forEach(field => {
       const options = uniqueValues(field, currentlyFiltered.length ? currentlyFiltered : allRows);
       container.appendChild(buildDropdown(field, options));
     });
+  }
+
+  function buildDateRange() {
+    const wrap = document.createElement('div');
+    wrap.className = 'filter-date';
+    wrap.innerHTML = `
+      <label>Desde <input type="date" id="filterDateStart" value="${dateRange.start || ''}"></label>
+      <label>Hasta <input type="date" id="filterDateEnd" value="${dateRange.end || ''}"></label>`;
+    const startInput = wrap.querySelector('#filterDateStart');
+    const endInput = wrap.querySelector('#filterDateEnd');
+    startInput.addEventListener('change', () => { dateRange.start = startInput.value || null; onChangeCb(getActiveFilters()); });
+    endInput.addEventListener('change', () => { dateRange.end = endInput.value || null; onChangeCb(getActiveFilters()); });
+    return wrap;
   }
 
   function buildDropdown(field, options) {
@@ -1147,24 +1303,41 @@ const FiltersModule = (() => {
 
   function applyFilters(rows, excludeKey) {
     const keys = Object.keys(activeFilters).filter(k => activeFilters[k].size && k !== excludeKey);
-    if (!keys.length) return rows;
-    return rows.filter(r => keys.every(k => {
-      const field = FIELDS.find(f => f.key === k);
-      return activeFilters[k].has(field.accessor(r));
-    }));
+    let out = rows;
+    if (keys.length) {
+      out = out.filter(r => keys.every(k => {
+        const field = FIELDS.find(f => f.key === k);
+        return activeFilters[k].has(field.accessor(r));
+      }));
+    }
+    if (excludeKey !== 'fecha' && (dateRange.start || dateRange.end)) {
+      const startTs = dateRange.start ? new Date(dateRange.start + 'T00:00:00').getTime() : null;
+      const endTs = dateRange.end ? new Date(dateRange.end + 'T23:59:59').getTime() : null;
+      out = out.filter(r => {
+        if (!r.fecha) return false;
+        const t = r.fecha.getTime();
+        if (startTs !== null && t < startTs) return false;
+        if (endTs !== null && t > endTs) return false;
+        return true;
+      });
+    }
+    return out;
   }
 
   function reset() {
     FIELDS.forEach(f => activeFilters[f.key].clear());
+    dateRange = { start: null, end: null };
     render();
     onChangeCb(getActiveFilters());
   }
 
   function hasActive() {
-    return Object.values(activeFilters).some(s => s.size);
+    return Object.values(activeFilters).some(s => s.size) || !!(dateRange.start || dateRange.end);
   }
 
-  return { init, updateData, applyFilters, getActiveFilters, reset, hasActive, FIELDS };
+  function getDateRange() { return { ...dateRange }; }
+
+  return { init, updateData, applyFilters, getActiveFilters, getDateRange, reset, hasActive, FIELDS };
 })();
 
 </script>
@@ -1271,6 +1444,137 @@ const ChartsModule = (() => {
     }, { indexAxis: 'y', plugins: { legend: { display: false } } });
   }
 
+  /* ---------- Genérico: barras VERTICALES top N ---------- */
+  function renderTopBarV(id, rows, keyFn, n = 15, color = '#2563EB') {
+    const map = groupCount(rows, keyFn);
+    const top = topN(map, n);
+    upsert(id, 'bar', {
+      labels: top.map(t => t[0]),
+      datasets: [{ label: 'Servicios', data: top.map(t => t[1]), backgroundColor: color, borderRadius: 4 }]
+    }, { plugins: { legend: { display: false } } });
+  }
+
+  /* ---------- Genérico: % de efectividad (predicado) por categoría, barras horizontales, top N ---------- */
+  function renderRateBarH(id, rows, keyFn, predicateFn, n = 15, color = '#16A34A', minSample = 1) {
+    const totalMap = new Map(), hitMap = new Map();
+    rows.forEach(r => {
+      const k = keyFn(r);
+      if (k === null || k === undefined || k === '' || k === 'Sin dato') return;
+      totalMap.set(k, (totalMap.get(k) || 0) + 1);
+      if (predicateFn(r)) hitMap.set(k, (hitMap.get(k) || 0) + 1);
+    });
+    let entries = Array.from(totalMap.entries()).filter(([, c]) => c >= minSample)
+      .map(([k, c]) => [k, ((hitMap.get(k) || 0) / c) * 100]);
+    entries.sort((a, b) => b[1] - a[1]);
+    entries = entries.slice(0, n);
+    upsert(id, 'bar', {
+      labels: entries.map(e => e[0]),
+      datasets: [{ label: '% Efectividad', data: entries.map(e => Number(e[1].toFixed(1))), backgroundColor: color, borderRadius: 4 }]
+    }, { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { max: 100, ticks: { callback: v => v + '%' } } } });
+  }
+
+  /* ---------- Variantes "mostrar todas las categorías" con contenedor deslizable ---------- */
+  function renderAllBarsScrollV(id, wrapId, rows, keyFn, color = '#2563EB') {
+    const map = groupCount(rows, keyFn);
+    const entries = Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+    const wrap = document.getElementById(wrapId);
+    if (wrap) {
+      const minWidth = wrap.parentElement ? wrap.parentElement.clientWidth : 600;
+      wrap.style.width = Math.max(entries.length * 52, minWidth) + 'px';
+    }
+    upsert(id, 'bar', {
+      labels: entries.map(e => e[0]),
+      datasets: [{ label: 'Servicios', data: entries.map(e => e[1]), backgroundColor: color, borderRadius: 4 }]
+    }, { plugins: { legend: { display: false } } });
+  }
+
+  function renderAllRateBarScrollH(id, wrapId, rows, keyFn, predicateFn, color = '#16A34A', minSample = 1) {
+    const totalMap = new Map(), hitMap = new Map();
+    rows.forEach(r => {
+      const k = keyFn(r);
+      if (!k || k === 'Sin dato') return;
+      totalMap.set(k, (totalMap.get(k) || 0) + 1);
+      if (predicateFn(r)) hitMap.set(k, (hitMap.get(k) || 0) + 1);
+    });
+    let entries = Array.from(totalMap.entries()).filter(([, c]) => c >= minSample)
+      .map(([k, c]) => [k, ((hitMap.get(k) || 0) / c) * 100]);
+    entries.sort((a, b) => b[1] - a[1]);
+    const wrap = document.getElementById(wrapId);
+    if (wrap) {
+      const minHeight = wrap.parentElement ? wrap.parentElement.clientHeight : 300;
+      wrap.style.height = Math.max(entries.length * 30, minHeight) + 'px';
+    }
+    upsert(id, 'bar', {
+      labels: entries.map(e => e[0]),
+      datasets: [{ label: '% Efectividad', data: entries.map(e => Number(e[1].toFixed(1))), backgroundColor: color, borderRadius: 4 }]
+    }, { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { max: 100, ticks: { callback: v => v + '%' } } } });
+  }
+
+  /* ---------- Tiempos: promedio mensual ---------- */
+  function renderAvgTimeByMonth(id, rows, timeField, color, labelText) {
+    const map = new Map();
+    rows.forEach(r => {
+      if (r.mes && r[timeField] !== null && r[timeField] !== undefined) {
+        const arr = map.get(r.mes) || []; arr.push(r[timeField]); map.set(r.mes, arr);
+      }
+    });
+    const labels = [], values = [];
+    for (let m = 1; m <= 12; m++) {
+      if (map.has(m)) {
+        labels.push(Utils.MESES_ABR[m - 1]);
+        const arr = map.get(m);
+        values.push(Number((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1)));
+      }
+    }
+    upsert(id, 'line', {
+      labels, datasets: [{ label: labelText, data: values, borderColor: color, backgroundColor: color + '22', fill: true, tension: .3, pointRadius: 3 }]
+    }, {
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => Utils.minutesToHHMM(ctx.parsed.y) } } },
+      scales: { y: { ticks: { callback: v => Utils.minutesToHHMM(v) } } }
+    });
+  }
+
+  /* ---------- Tiempos: promedio por categoría, barras horizontales, mayor a menor ---------- */
+  function renderAvgTimeTopBar(id, rows, keyFn, timeField, n = 15, color = '#2563EB') {
+    const map = new Map();
+    rows.forEach(r => {
+      const k = keyFn(r);
+      if (!k || k === 'Sin dato' || r[timeField] === null || r[timeField] === undefined) return;
+      const arr = map.get(k) || []; arr.push(r[timeField]); map.set(k, arr);
+    });
+    let entries = Array.from(map.entries()).map(([k, arr]) => [k, arr.reduce((a, b) => a + b, 0) / arr.length]);
+    entries.sort((a, b) => b[1] - a[1]);
+    entries = entries.slice(0, n);
+    upsert(id, 'bar', {
+      labels: entries.map(e => e[0]),
+      datasets: [{ label: 'Minutos promedio', data: entries.map(e => Number(e[1].toFixed(1))), backgroundColor: color, borderRadius: 4 }]
+    }, {
+      indexAxis: 'y', plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => Utils.minutesToHHMM(ctx.parsed.x) } } }
+    });
+  }
+
+  /* ---------- Tiempos: creación vs aceptación agrupados por categoría ---------- */
+  function renderAvgTimeGrouped(id, rows, keyFn, n = 12) {
+    const mapC = new Map(), mapA = new Map(), countMap = new Map();
+    rows.forEach(r => {
+      const k = keyFn(r);
+      if (!k || k === 'Sin dato') return;
+      countMap.set(k, (countMap.get(k) || 0) + 1);
+      if (r.tiempoCreacion !== null && r.tiempoCreacion !== undefined) { const arr = mapC.get(k) || []; arr.push(r.tiempoCreacion); mapC.set(k, arr); }
+      if (r.tiempoAceptacion !== null && r.tiempoAceptacion !== undefined) { const arr = mapA.get(k) || []; arr.push(r.tiempoAceptacion); mapA.set(k, arr); }
+    });
+    const top = Array.from(countMap.entries()).sort((a, b) => b[1] - a[1]).slice(0, n).map(e => e[0]);
+    const avgC = top.map(k => { const arr = mapC.get(k); return arr && arr.length ? Number((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1)) : null; });
+    const avgA = top.map(k => { const arr = mapA.get(k); return arr && arr.length ? Number((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1)) : null; });
+    upsert(id, 'bar', {
+      labels: top,
+      datasets: [
+        { label: 'Creación / Alistamiento', data: avgC, backgroundColor: '#2563EB', borderRadius: 4 },
+        { label: 'Aceptación / Entrega', data: avgA, backgroundColor: '#16A34A', borderRadius: 4 }
+      ]
+    }, { plugins: { legend: { display: true } } });
+  }
+
   /* ---------- Genérico: doughnut ---------- */
   function renderDoughnut(id, rows, keyFn, n = 8) {
     const map = groupCount(rows, keyFn);
@@ -1307,7 +1611,7 @@ const ChartsModule = (() => {
     renderTopBar(id, rows, r => r.coordinador, 20, '#16A34A');
   }
 
-  /* ---------- Distribución SLA por rangos ---------- */
+  /* ---------- Distribución SLA por rangos (tiempo de aceptación/entrega) ---------- */
   function renderSlaDistribution(rows) {
     const ranges = [
       { label: '0-30 min', test: v => v <= 30 },
@@ -1318,8 +1622,8 @@ const ChartsModule = (() => {
     ];
     const counts = ranges.map(() => 0);
     rows.forEach(r => {
-      if (r.tiempoReal === null || r.tiempoReal === undefined) return;
-      const idx = ranges.findIndex(rg => rg.test(r.tiempoReal));
+      if (r.tiempoAceptacion === null || r.tiempoAceptacion === undefined) return;
+      const idx = ranges.findIndex(rg => rg.test(r.tiempoAceptacion));
       if (idx >= 0) counts[idx]++;
     });
     upsert('chartSlaDist', 'bar', {
@@ -1401,7 +1705,9 @@ const ChartsModule = (() => {
   function destroyAll() { Object.values(registry).forEach(c => c.destroy()); }
 
   return {
-    renderByMonth, renderByDay, renderByHour, renderTopBar, renderDoughnut, renderRateByMonth,
+    renderByMonth, renderByDay, renderByHour, renderTopBar, renderTopBarV, renderDoughnut, renderRateByMonth,
+    renderRateBarH, renderAllBarsScrollV, renderAllRateBarScrollH,
+    renderAvgTimeByMonth, renderAvgTimeTopBar, renderAvgTimeGrouped,
     renderProductivity, renderSlaDistribution, renderSlaGauge,
     renderPercapitaMonthly, renderPercapitaByCity, renderPercapitaByFarmacia, renderPercapitaVsServicios,
     groupCount, topN, destroyAll, registry
@@ -1411,19 +1717,25 @@ const ChartsModule = (() => {
 </script>
 <script>
 /* =========================================================================
-   map.js — Mapa de cobertura Colombia (Leaflet) con burbujas por ciudad/municipio
+   map.js — Mapa de cobertura Colombia (Leaflet)
+   Mapa de calor real usando coordenadas por servicio (columnas AA = lat, AB = lng).
+   Los centroides de ciudad/municipio se calculan promediando las coordenadas
+   reales de sus propios servicios; solo se recurre a una tabla de respaldo o
+   geocodificación si una ciudad no trae ninguna coordenada en la hoja.
    ========================================================================= */
 
 const MapModule = (() => {
 
   let map = null;
   let markersLayer = null;
+  let heatLayer = null;
   let onMarkerClick = () => {};
   const geocodeCache = Utils.lsGet('geocode_cache_v1') || {};
   let geocodeQueue = [];
   let geocodeBusy = false;
 
-  /* Coordenadas conocidas de las principales ciudades / municipios de Colombia */
+  /* Respaldo: coordenadas de las principales ciudades de Colombia, solo se usa
+     si una ciudad no trae NINGUNA coordenada propia (AA/AB) en la hoja. */
   const KNOWN_COORDS = {
     'BOGOTA': [4.7110, -74.0721], 'MEDELLIN': [6.2442, -75.5812], 'CALI': [3.4516, -76.5320],
     'BARRANQUILLA': [10.9685, -74.7813], 'CARTAGENA': [10.3910, -75.4794], 'BUCARAMANGA': [7.1193, -73.1227],
@@ -1432,40 +1744,14 @@ const MapModule = (() => {
     'VILLAVICENCIO': [4.1420, -73.6266], 'MONTERIA': [8.7479, -75.8814], 'VALLEDUPAR': [10.4631, -73.2532],
     'SINCELEJO': [9.3047, -75.3978], 'POPAYAN': [2.4448, -76.6147], 'TUNJA': [5.5353, -73.3678],
     'FLORENCIA': [1.6144, -75.6062], 'RIOHACHA': [11.5444, -72.9072], 'QUIBDO': [5.6947, -76.6611],
-    'YOPAL': [5.3378, -72.3959], 'ARMENIA': [4.5339, -75.6811], 'SANTA MARTA': [11.2408, -74.1990],
-    'TULUA': [4.0847, -76.1954], 'SOACHA': [4.5793, -74.2165], 'SOLEDAD': [10.9143, -74.7645],
-    'ITAGUI': [6.1719, -75.6114], 'BELLO': [6.3373, -75.5581], 'ENVIGADO': [6.1699, -75.5910],
-    'PALMIRA': [3.5394, -76.3036], 'GIRARDOT': [4.3033, -74.8033], 'BUENAVENTURA': [3.8801, -77.0312],
-    'MAGANGUE': [9.2417, -74.7554], 'IPIALES': [0.8281, -77.6412], 'TUMACO': [1.7986, -78.7864],
-    'APARTADO': [7.8834, -76.6198], 'TURBO': [8.0930, -76.7288], 'DUITAMA': [5.8237, -73.0334],
-    'SOGAMOSO': [5.7147, -72.9335], 'ZIPAQUIRA': [5.0223, -74.0031], 'CHIA': [4.8618, -74.0322],
-    'FUSAGASUGA': [4.3353, -74.3644], 'GIRON': [7.0678, -73.1715], 'FLORIDABLANCA': [7.0653, -73.0864],
-    'PIEDECUESTA': [6.9895, -73.0499], 'BARRANCABERMEJA': [7.0653, -73.8547], 'MAICAO': [11.3806, -72.2385],
-    'SAN ANDRES': [12.5847, -81.7006], 'LETICIA': [-4.2151, -69.9406], 'MITU': [1.2528, -70.2340],
-    'PUERTO CARRENO': [6.1892, -67.4859], 'INIRIDA': [3.8653, -67.9239], 'SAN JOSE DEL GUAVIARE': [2.5708, -72.6413],
-    'MOCOA': [1.1497, -76.6486], 'ARAUCA': [7.0847, -70.7591], 'CIENAGA': [11.0084, -74.2472],
-    'EL BANCO': [9.0014, -73.9764], 'LORICA': [9.2372, -75.8145], 'CHIGORODO': [7.6664, -76.6819],
-    'RIONEGRO': [6.1552, -75.3736], 'SABANETA': [6.1518, -75.6164], 'LA CEJA': [6.0294, -75.4306],
-    'CARTAGO': [4.7461, -75.9107], 'BUGA': [3.9009, -76.2986], 'YUMBO': [3.5878, -76.4941],
-    'JAMUNDI': [3.2617, -76.5423], 'DOSQUEBRADAS': [4.8397, -75.6714], 'ZARZAL': [4.3961, -76.0658],
-    'ESPINAL': [4.1500, -74.8836], 'MELGAR': [4.2039, -74.6414], 'CHAPARRAL': [3.7233, -75.4839],
-    'GARZON': [2.1969, -75.6289], 'PITALITO': [1.8535, -76.0503], 'AIPE': [3.2225, -75.2372],
-    'FACATATIVA': [4.8133, -74.3550], 'MOSQUERA': [4.7059, -74.2306], 'MADRID': [4.7325, -74.2678],
-    'CAJICA': [4.9186, -74.0261], 'SOPO': [4.9089, -73.9414], 'TOCANCIPA': [4.9672, -73.9878]
+    'YOPAL': [5.3378, -72.3959], 'ARMENIA': [4.5339, -75.6811], 'SANTA MARTA': [11.2408, -74.1990]
   };
 
   function keyFor(name) { return Utils.normalize(name); }
 
-  function getCoords(name) {
-    const key = keyFor(name);
-    if (KNOWN_COORDS[key]) return KNOWN_COORDS[key];
-    if (geocodeCache[key]) return geocodeCache[key];
-    return null;
-  }
-
   function queueGeocode(name, onResolved) {
     const key = keyFor(name);
-    if (KNOWN_COORDS[key] || geocodeCache[key]) return;
+    if (KNOWN_COORDS[key] || geocodeCache[key]) { if (geocodeCache[key]) onResolved(geocodeCache[key]); return; }
     geocodeQueue.push({ name, key, onResolved });
     processQueue();
   }
@@ -1485,7 +1771,7 @@ const MapModule = (() => {
           Utils.lsSet('geocode_cache_v1', geocodeCache);
           item.onResolved && item.onResolved(coords);
         }
-      } catch (e) { /* silencioso: geocodificación best-effort */ }
+      } catch (e) { /* silencioso: geocodificación de respaldo, best-effort */ }
       await new Promise(res => setTimeout(res, 1100)); // respeta límite de Nominatim (1 req/s)
     }
     geocodeBusy = false;
@@ -1497,6 +1783,9 @@ const MapModule = (() => {
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 18
     }).addTo(map);
+    if (typeof L.heatLayer === 'function') {
+      heatLayer = L.heatLayer([], { radius: 22, blur: 18, maxZoom: 12, minOpacity: 0.35 }).addTo(map);
+    }
     markersLayer = L.layerGroup().addTo(map);
   }
 
@@ -1507,57 +1796,64 @@ const MapModule = (() => {
     return '#DC2626';
   }
 
+  /* Agrega servicios por ciudad/municipio, calculando el centroide real a partir
+     de las coordenadas propias (AA/AB) de los servicios de ese lugar. */
   function aggregateByPlace(rows, pcRows, useMunicipio) {
     const field = useMunicipio ? 'municipio' : 'ciudad';
     const map_ = new Map();
     rows.forEach(r => {
       const place = r[field];
       if (!place || place === 'Sin dato') return;
-      if (!map_.has(place)) map_.set(place, { total: 0, efectivos: 0, cancelados: 0, tiempos: [], ciudad: r.ciudad });
+      if (!map_.has(place)) map_.set(place, { total: 0, efectivos: 0, cancelados: 0, tiempos: [], latSum: 0, lngSum: 0, coordCount: 0, ciudad: r.ciudad });
       const agg = map_.get(place);
       agg.total++;
       if (r.estado === 'EFECTIVO') agg.efectivos++;
       if (r.estado === 'CANCELADO') agg.cancelados++;
-      if (r.tiempoReal !== null && r.tiempoReal !== undefined) agg.tiempos.push(r.tiempoReal);
+      if (r.tiempoAceptacion !== null && r.tiempoAceptacion !== undefined) agg.tiempos.push(r.tiempoAceptacion);
+      if (r.lat !== null && r.lng !== null) { agg.latSum += r.lat; agg.lngSum += r.lng; agg.coordCount++; }
     });
     const pcMap = new Map();
     (pcRows || []).forEach(r => {
-      const place = useMunicipio ? r.ciudad : r.ciudad; // percápita normalmente a nivel ciudad
-      if (!place) return;
-      if (!pcMap.has(place)) pcMap.set(place, []);
-      pcMap.get(place).push(r.valor);
+      if (!r.ciudad) return;
+      if (!pcMap.has(r.ciudad)) pcMap.set(r.ciudad, []);
+      pcMap.get(r.ciudad).push(r.valor);
     });
     return Array.from(map_.entries()).map(([place, agg]) => {
       const cumplimiento = agg.total ? (agg.efectivos / agg.total) * 100 : null;
       const tiempoProm = agg.tiempos.length ? agg.tiempos.reduce((a, b) => a + b, 0) / agg.tiempos.length : null;
       const pcArr = pcMap.get(agg.ciudad);
       const percapita = pcArr && pcArr.length ? pcArr.reduce((a, b) => a + b, 0) / pcArr.length : null;
-      return { place, total: agg.total, cumplimiento, cancelados: agg.cancelados, tiempoProm, percapita };
+      const centroid = agg.coordCount ? [agg.latSum / agg.coordCount, agg.lngSum / agg.coordCount] : null;
+      return { place, total: agg.total, cumplimiento, cancelados: agg.cancelados, tiempoProm, percapita, centroid };
     });
   }
 
   function render(rows, pcRows, useMunicipio, metricMode) {
     if (!map) return;
     markersLayer.clearLayers();
+
+    // Capa de calor: un punto por CADA servicio con coordenadas propias (AA/AB) → densidad real
+    if (heatLayer) {
+      const heatPoints = rows.filter(r => r.lat !== null && r.lng !== null).map(r => [r.lat, r.lng, 0.55]);
+      heatLayer.setLatLngs(heatPoints);
+    }
+
     const data = aggregateByPlace(rows, pcRows, useMunicipio);
     if (!data.length) return;
     const maxTotal = Math.max(...data.map(d => d.total), 1);
 
     data.forEach(d => {
-      let coords = getCoords(d.place);
       const drawMarker = (c) => {
-        const radius = 6 + (Math.sqrt(d.total / maxTotal) * 26);
-        const color = metricMode === 'cumplimiento' ? metricColor(d.cumplimiento) : '#2563EB';
-        const marker = L.circleMarker(c, {
-          radius, color, fillColor: color, fillOpacity: 0.55, weight: 1.5
-        });
+        const radius = 5 + (Math.sqrt(d.total / maxTotal) * 14);
+        const color = metricMode === 'cumplimiento' ? metricColor(d.cumplimiento) : '#1E3A8A';
+        const marker = L.circleMarker(c, { radius, color: '#fff', weight: 1.5, fillColor: color, fillOpacity: 0.85 });
         marker.bindPopup(`
           <div class="map-popup">
             <h4>${d.place}</h4>
             <table>
               <tr><td>Servicios</td><td><b>${Utils.formatNumber(d.total)}</b></td></tr>
               <tr><td>Cumplimiento</td><td><b>${d.cumplimiento !== null ? Utils.formatPct(d.cumplimiento) : '—'}</b></td></tr>
-              <tr><td>Tiempo prom.</td><td><b>${Utils.minutesToHHMM(d.tiempoProm)}</b></td></tr>
+              <tr><td>Tiempo entrega prom.</td><td><b>${Utils.minutesToHHMM(d.tiempoProm)}</b></td></tr>
               <tr><td>Cancelaciones</td><td><b>${Utils.formatNumber(d.cancelados)}</b></td></tr>
               <tr><td>Percápita</td><td><b>${d.percapita !== null ? Utils.formatCurrency(d.percapita) : '—'}</b></td></tr>
             </table>
@@ -1565,8 +1861,12 @@ const MapModule = (() => {
         marker.on('click', () => onMarkerClick(d.place, useMunicipio ? 'municipio' : 'ciudad'));
         marker.addTo(markersLayer);
       };
-      if (coords) drawMarker(coords);
-      else queueGeocode(d.place, (c) => drawMarker(c));
+      if (d.centroid) drawMarker(d.centroid);
+      else {
+        const known = KNOWN_COORDS[keyFor(d.place)] || geocodeCache[keyFor(d.place)];
+        if (known) drawMarker(known);
+        else queueGeocode(d.place, (c) => drawMarker(c));
+      }
     });
   }
 
@@ -1591,11 +1891,18 @@ const MapModule = (() => {
     cobertura: { good: 80, warn: 60 }
   };
 
-  document.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('DOMContentLoaded', () => {
+    const ready = window.__libsReady || Promise.resolve();
+    ready.catch(() => {}).then(init);
+  });
 
   async function init() {
     cacheEls();
     wireStaticUI();
+
+    if (typeof Chart === 'undefined' || typeof L === 'undefined' || typeof Papa === 'undefined') {
+      setStatus('error', 'No se pudieron cargar las librerías externas (Chart.js/Leaflet/PapaParse). Revisa tu conexión a internet o si tu red bloquea CDNs.');
+    }
 
     const hadCache = DataLayer.loadFromCacheIfAny();
     if (hadCache) renderAll();
@@ -1639,6 +1946,7 @@ const MapModule = (() => {
     els.statusDot = document.getElementById('statusDot');
     els.statusMsg = document.getElementById('statusMsg');
     els.kpiGrid = document.getElementById('kpiGrid');
+    els.kpiGridIndicadores = document.getElementById('kpiGridIndicadores');
     els.alertsList = document.getElementById('alertsList');
     els.alertsBadge = document.getElementById('alertsBadge');
     els.tableBody = document.getElementById('tableBody');
@@ -1716,9 +2024,17 @@ const MapModule = (() => {
   function getFilteredPercapita() {
     const state = DataLayer.getState();
     const filters = FiltersModule.getActiveFilters();
+    const range = FiltersModule.getDateRange();
+    const startTs = range.start ? new Date(range.start + 'T00:00:00').getTime() : null;
+    const endTs = range.end ? new Date(range.end + 'T23:59:59').getTime() : null;
     return state.percapitaRows.filter(r => {
       if (filters.ciudad && !filters.ciudad.has(r.ciudad)) return false;
-      if (filters.anio && !filters.anio.has(r.anio)) return false;
+      if (startTs !== null || endTs !== null) {
+        if (!r.fecha) return false;
+        const t = r.fecha.getTime();
+        if (startTs !== null && t < startTs) return false;
+        if (endTs !== null && t > endTs) return false;
+      }
       return true;
     });
   }
@@ -1734,30 +2050,61 @@ const MapModule = (() => {
     const pcRows = getFilteredPercapita();
 
     safe('KPIs', () => renderKPIs(filteredRows));
+    safe('KPIs Indicadores', () => renderKPIsIndicadores(filteredRows));
     safe('gráficos', () => renderCharts(filteredRows, pcRows));
     safe('mapa', () => renderMap());
     safe('alertas', () => renderAlerts(filteredRows));
     safe('tabla', () => renderTable());
+    safe('diagnóstico', () => renderDiagnostico());
+  }
+
+  function renderDiagnostico() {
+    const box = document.getElementById('diagnosticoBox');
+    if (!box) return;
+    const diag = DataLayer.getState().diagnostics;
+    const lines = [];
+    ['hoja1', 'hoja2', 'hoja3', 'percapita'].forEach(tag => {
+      lines.push(`── ${tag.toUpperCase()} ──`);
+      lines.push(`Filas leídas: ${diag.rowCounts[tag] ?? 0}`);
+      if (diag.headers[tag]) lines.push(`Encabezados detectados: ${diag.headers[tag].join(' | ')}`);
+      if (diag.fieldMaps[tag]) {
+        lines.push('Columna usada por campo:');
+        Object.entries(diag.fieldMaps[tag]).forEach(([field, col]) => lines.push(`  ${field.padEnd(16)} → ${col ?? '(no encontrada)'}`));
+      }
+      lines.push('');
+    });
+    lines.push('── VALORES DE "ESTADO" ENCONTRADOS (crudo → cantidad) ──');
+    const estadoEntries = Object.entries(diag.estadoCounts).sort((a, b) => b[1] - a[1]).slice(0, 20);
+    if (estadoEntries.length) estadoEntries.forEach(([k, v]) => lines.push(`  "${k}" → ${v}`));
+    else lines.push('  (no se detectó ninguna columna de estado)');
+    lines.push('');
+    lines.push(`── TIEMPOS (AM/AN) ──`);
+    lines.push(`Valores descartados por estar fuera de rango plausible (0–${60 * 24 * 3} min): ${diag.tiempoDescartados}`);
+    lines.push('');
+    const allRows = DataLayer.getState().rawRows;
+    const withCoords = allRows.filter(r => r.lat !== null && r.lng !== null).length;
+    lines.push(`── COORDENADAS (AA=lat / AB=lng) ──`);
+    lines.push(`Servicios con coordenadas válidas: ${withCoords} de ${allRows.length} (${allRows.length ? Utils.formatPct(withCoords / allRows.length * 100) : '—'})`);
+    box.textContent = lines.join('\n');
   }
 
   /* ================= KPIs ================= */
   function getComparisonSets(rows) {
     const state = DataLayer.getState();
-    const filters = FiltersModule.getActiveFilters();
-    const baseRows = FiltersModule.applyFilters(state.rawRows, 'mes').filter(r => rows.includes(r) || true);
-    const monthsPresent = Array.from(new Set(baseRows.map(r => r.mes).filter(Boolean))).sort((a, b) => a - b);
-    let curMonth, prevMonth;
-    if (filters.mes && filters.mes.size === 1) {
-      curMonth = Array.from(filters.mes)[0];
-      prevMonth = curMonth > 1 ? curMonth - 1 : null;
-    } else if (monthsPresent.length >= 2) {
-      curMonth = monthsPresent[monthsPresent.length - 1];
-      prevMonth = monthsPresent[monthsPresent.length - 2];
+    const monthsInView = Array.from(new Set(rows.map(r => r.mes).filter(Boolean))).sort((a, b) => a - b);
+    if (!monthsInView.length) return { current: rows, previous: null };
+
+    if (monthsInView.length >= 2) {
+      const curMonth = monthsInView[monthsInView.length - 1];
+      const prevMonth = monthsInView[monthsInView.length - 2];
+      return { current: rows.filter(r => r.mes === curMonth), previous: rows.filter(r => r.mes === prevMonth) };
     }
-    if (!prevMonth) return { current: rows, previous: null };
-    const previous = baseRows.filter(r => r.mes === prevMonth);
-    const current = (filters.mes && filters.mes.size === 1) ? rows : baseRows.filter(r => r.mes === curMonth);
-    return { current, previous };
+    // Solo hay un mes en el rango filtrado: busca el mes anterior en el universo completo (sin el filtro de fecha)
+    const curMonth = monthsInView[0];
+    if (curMonth <= 1) return { current: rows, previous: null };
+    const baseRows = FiltersModule.applyFilters(state.rawRows, 'fecha');
+    const previous = baseRows.filter(r => r.mes === curMonth - 1);
+    return { current: rows, previous: previous.length ? previous : null };
   }
 
   function kpiStats(rows) {
@@ -1765,17 +2112,20 @@ const MapModule = (() => {
     const efectivos = rows.filter(r => r.estado === 'EFECTIVO').length;
     const cancelados = rows.filter(r => r.estado === 'CANCELADO').length;
     const novedades = rows.filter(r => r.estado === 'NOVEDAD').length;
-    const tiempos = rows.map(r => r.tiempoReal).filter(v => v !== null && v !== undefined);
-    const tiempoProm = tiempos.length ? tiempos.reduce((a, b) => a + b, 0) / tiempos.length : null;
+    const tiemposCreacion = rows.map(r => r.tiempoCreacion).filter(v => v !== null && v !== undefined);
+    const tiempoCreacionProm = tiemposCreacion.length ? tiemposCreacion.reduce((a, b) => a + b, 0) / tiemposCreacion.length : null;
+    const tiemposAceptacion = rows.map(r => r.tiempoAceptacion).filter(v => v !== null && v !== undefined);
+    const tiempoAceptacionProm = tiemposAceptacion.length ? tiemposAceptacion.reduce((a, b) => a + b, 0) / tiemposAceptacion.length : null;
     const valores = rows.map(r => r.valor).filter(v => v !== null && v !== undefined);
     const ticketProm = valores.length ? valores.reduce((a, b) => a + b, 0) / valores.length : null;
     const ciudades = new Set(rows.map(r => r.ciudad).filter(c => c && c !== 'Sin dato')).size;
     const municipios = new Set(rows.map(r => r.municipio).filter(c => c && c !== 'Sin dato')).size;
     const cumplimiento = total ? (efectivos / total) * 100 : null;
     return {
-      total, efectivos, cancelados, novedades, tiempoProm, ticketProm, ciudades, municipios, cumplimiento,
+      total, efectivos, cancelados, novedades, tiempoCreacionProm, tiempoAceptacionProm, ticketProm, ciudades, municipios, cumplimiento,
       cancelacionesPct: total ? (cancelados / total) * 100 : null,
-      novedadesPct: total ? (novedades / total) * 100 : null
+      novedadesPct: total ? (novedades / total) * 100 : null,
+      entregadosPct: total ? (efectivos / total) * 100 : null
     };
   }
 
@@ -1811,8 +2161,8 @@ const MapModule = (() => {
       kpiCard('Cumplimiento', Utils.formatPct(cur.cumplimiento), v('cumplimiento'), true, Utils.semaforo(cur.cumplimiento, KPI_THRESHOLDS.cumplimiento), '🎯'),
       kpiCard('Cancelaciones', Utils.formatNumber(cur.cancelados) + ` (${Utils.formatPct(cur.cancelacionesPct)})`, v('cancelacionesPct'), false, null, '🚫'),
       kpiCard('Novedades', Utils.formatNumber(cur.novedades) + ` (${Utils.formatPct(cur.novedadesPct)})`, v('novedadesPct'), false, null, '⚠️'),
-      kpiCard('Tiempo Promedio', Utils.minutesToHHMM(cur.tiempoProm), v('tiempoProm'), false, null, '⏱'),
-      kpiCard('Ticket Promedio', cur.ticketProm !== null ? Utils.formatCurrency(cur.ticketProm) : '—', v('ticketProm'), true, null, '💳'),
+      kpiCard('Tiempo Creación', Utils.minutesToHHMM(cur.tiempoCreacionProm), v('tiempoCreacionProm'), false, null, '🕐'),
+      kpiCard('Tiempo Entrega', Utils.minutesToHHMM(cur.tiempoAceptacionProm), v('tiempoAceptacionProm'), false, null, '⏱'),
       kpiCard('Cobertura', Utils.formatNumber(cur.municipios) + ' municipios', null, true, null, '🌎'),
       kpiCard('Ciudades', Utils.formatNumber(cur.ciudades), null, true, null, '🏙'),
       kpiCard('Municipios', Utils.formatNumber(cur.municipios), null, true, null, '📍')
@@ -1820,27 +2170,62 @@ const MapModule = (() => {
     els.kpiGrid.innerHTML = cards.join('');
   }
 
+  function renderKPIsIndicadores(rows) {
+    if (!els.kpiGridIndicadores) return;
+    const { current, previous } = getComparisonSets(rows);
+    const cur = kpiStats(rows);
+    const prevStats = previous ? kpiStats(previous) : null;
+    const curForVar = previous ? kpiStats(current) : null;
+    const v = (key) => (prevStats && curForVar) ? Utils.variation(curForVar[key], prevStats[key]) : null;
+
+    const cards = [
+      kpiCard('Total Servicios', Utils.formatNumber(cur.total), v('total'), true, null, '📦'),
+      kpiCard('% Entregados', Utils.formatPct(cur.entregadosPct), v('entregadosPct'), true, Utils.semaforo(cur.entregadosPct, KPI_THRESHOLDS.cumplimiento), '✅'),
+      kpiCard('% Cerrados con Novedad', Utils.formatPct(cur.novedadesPct), v('novedadesPct'), false, null, '⚠️'),
+      kpiCard('Tiempo Creación / Alistamiento', Utils.minutesToHHMM(cur.tiempoCreacionProm), v('tiempoCreacionProm'), false, null, '🕐'),
+      kpiCard('Tiempo Aceptación / Entrega', Utils.minutesToHHMM(cur.tiempoAceptacionProm), v('tiempoAceptacionProm'), false, null, '⏱')
+    ];
+    els.kpiGridIndicadores.innerHTML = cards.join('');
+  }
+
   /* ================= Gráficos ================= */
   function renderCharts(rows, pcRows) {
+    // Inicio
     ChartsModule.renderByMonth(rows);
     ChartsModule.renderByDay(rows);
-    ChartsModule.renderByHour(rows);
+
+    // Indicadores
+    ChartsModule.renderTopBar('chartTopCiudadesVolumen', rows, r => r.ciudad, 15, '#2563EB');
+    ChartsModule.renderRateBarH('chartEfectividadCiudad', rows, r => r.ciudad, r => r.estado === 'EFECTIVO', 15, '#16A34A', 3);
+    ChartsModule.renderDoughnut('chartTipoServicioTorta', rows, r => r.tipoServicio, 10);
+    ChartsModule.renderRateBarH('chartTipoServicioEfectividad', rows, r => r.tipoServicio, r => r.estado === 'EFECTIVO', 10, '#16A34A', 3);
+    ChartsModule.renderDoughnut('chartNovedadTorta', rows.filter(r => r.esNovedadReal), r => r.estadoRaw, 10);
+    ChartsModule.renderTopBarV('chartNovedadCiudad', rows.filter(r => r.esNovedadReal), r => r.ciudad, 15, '#F59E0B');
+    ChartsModule.renderAllBarsScrollV('chartPuntoVentaVolumen', 'wrapPuntoVentaVolumen', rows, r => r.puntoVenta, '#2563EB');
+    ChartsModule.renderAllRateBarScrollH('chartPuntoVentaEfectividad', 'wrapPuntoVentaEfectividad', rows, r => r.puntoVenta, r => r.estado === 'EFECTIVO', '#16A34A');
+
+    // Operación
     ChartsModule.renderTopBar('chartByCity', rows, r => r.ciudad, 15, '#2563EB');
     ChartsModule.renderTopBar('chartByMunicipality', rows, r => r.municipio, 15, '#0EA5E9');
+    ChartsModule.renderByHour(rows);
     ChartsModule.renderDoughnut('chartByChannel', rows, r => r.canal);
     ChartsModule.renderDoughnut('chartByChannelType', rows, r => r.tipoCanal);
-    ChartsModule.renderTopBar('chartByServiceType', rows, r => r.tipoServicio, 12, '#16A34A');
-    ChartsModule.renderTopBar('chartBySpecialty', rows, r => r.codEspecialidad, 12, '#8B5CF6');
     ChartsModule.renderRateByMonth('chartCancelaciones', rows, r => r.estado === 'CANCELADO', '#DC2626');
     ChartsModule.renderRateByMonth('chartNovedades', rows, r => r.estado === 'NOVEDAD', '#F59E0B');
     ChartsModule.renderRateByMonth('chartCumplimiento', rows, r => r.estado === 'EFECTIVO', '#16A34A');
     ChartsModule.renderProductivity(rows, 'chartProductivity');
     ChartsModule.renderProductivity(rows, 'chartProductivity2');
+
+    // Tiempos (AM = creación/alistamiento, AN = aceptación/entrega)
+    ChartsModule.renderAvgTimeByMonth('chartTiempoCreacionMes', rows, 'tiempoCreacion', '#2563EB', 'Creación/Alistamiento');
+    ChartsModule.renderAvgTimeByMonth('chartTiempoAceptacionMes', rows, 'tiempoAceptacion', '#16A34A', 'Aceptación/Entrega');
+    ChartsModule.renderAvgTimeTopBar('chartTiempoCreacionCiudad', rows, r => r.ciudad, 'tiempoCreacion', 15, '#2563EB');
+    ChartsModule.renderAvgTimeTopBar('chartTiempoAceptacionCiudad', rows, r => r.ciudad, 'tiempoAceptacion', 15, '#16A34A');
+    ChartsModule.renderAvgTimeGrouped('chartTiempoTipoServicio', rows, r => r.tipoServicio, 12);
     ChartsModule.renderSlaDistribution(rows);
     ChartsModule.renderSlaGauge(rows);
-    ChartsModule.renderTopBar('chartSlaCiudad', rows.filter(r => r.dentroSla !== null), r => r.ciudad, 10, '#2563EB');
-    ChartsModule.renderTopBar('chartSlaFarmacia', rows.filter(r => r.dentroSla !== null), r => r.farmacia, 10, '#0EA5E9');
-    ChartsModule.renderTopBar('chartSlaEspecialidad', rows.filter(r => r.dentroSla !== null), r => r.codEspecialidad, 10, '#8B5CF6');
+
+    // Percápita
     ChartsModule.renderPercapitaMonthly(pcRows);
     ChartsModule.renderPercapitaByCity(pcRows);
     ChartsModule.renderPercapitaByFarmacia(pcRows);
@@ -1872,7 +2257,7 @@ const MapModule = (() => {
     const withSla = rows.filter(r => r.dentroSla !== null && r.dentroSla !== undefined);
     if (withSla.length) {
       const fueraPct = (withSla.filter(r => !r.dentroSla).length / withSla.length) * 100;
-      if (fueraPct > 15) alerts.push({ sev: fueraPct > 30 ? 'critical' : 'warn', title: 'Tiempo superior al SLA', detail: `${Utils.formatPct(fueraPct)} de los servicios exceden el tiempo SLA definido.` });
+      if (fueraPct > 15) alerts.push({ sev: fueraPct > 30 ? 'critical' : 'warn', title: 'Tiempo de entrega superior al SLA', detail: `${Utils.formatPct(fueraPct)} de los servicios exceden el tiempo de entrega definido.` });
     }
 
     function criticalGroups(field, label) {
@@ -1890,9 +2275,9 @@ const MapModule = (() => {
         }
       });
     }
-    criticalGroups('codEspecialidad', 'Especialidad');
+    criticalGroups('puntoVenta', 'Punto de venta');
     criticalGroups('municipio', 'Municipio');
-    criticalGroups('farmacia', 'Farmacia');
+    criticalGroups('cenLog', 'CenLog');
 
     alerts.sort((a, b) => (a.sev === 'critical' ? 0 : 1) - (b.sev === 'critical' ? 0 : 1));
     els.alertsBadge.textContent = alerts.length;
@@ -1909,13 +2294,14 @@ const MapModule = (() => {
     { key: 'fecha', label: 'Fecha', fmt: r => r.fecha ? Utils.formatDateTime(r.fecha).split(' ')[0] : '—' },
     { key: 'ciudad', label: 'Ciudad', fmt: r => r.ciudad },
     { key: 'municipio', label: 'Municipio', fmt: r => r.municipio },
-    { key: 'farmacia', label: 'Farmacia', fmt: r => r.farmacia },
+    { key: 'puntoVenta', label: 'Punto de Venta', fmt: r => r.puntoVenta },
+    { key: 'cenLog', label: 'CenLog', fmt: r => r.cenLog },
     { key: 'cliente', label: 'Cliente', fmt: r => r.cliente },
     { key: 'canal', label: 'Canal', fmt: r => r.canal },
     { key: 'tipoServicio', label: 'Tipo Servicio', fmt: r => r.tipoServicio },
-    { key: 'codEspecialidad', label: 'Especialidad', fmt: r => r.codEspecialidad },
     { key: 'estado', label: 'Estado', fmt: r => r.estado },
-    { key: 'tiempoReal', label: 'Tiempo', fmt: r => Utils.minutesToHHMM(r.tiempoReal) },
+    { key: 'tiempoCreacion', label: 'T. Creación', fmt: r => Utils.minutesToHHMM(r.tiempoCreacion) },
+    { key: 'tiempoAceptacion', label: 'T. Entrega', fmt: r => Utils.minutesToHHMM(r.tiempoAceptacion) },
     { key: 'dentroSla', label: 'SLA', fmt: r => r.dentroSla === null ? '—' : (r.dentroSla ? 'Dentro' : 'Fuera') },
     { key: 'coordinador', label: 'Coordinador', fmt: r => r.coordinador }
   ];
