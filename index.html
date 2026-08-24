@@ -862,10 +862,25 @@ const DataLayer = (() => {
     diagnostics: { fieldMaps: {}, headers: {}, estadoCounts: {}, tiempoDescartados: 0, rowCounts: {} }
   };
 
+  /* ---------- Utilidad: evita que cualquier petición se quede esperando para siempre ---------- */
+  function withTimeout(promise, ms, label) {
+    let timer;
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`Tiempo de espera agotado (${ms / 1000}s): ${label}`)), ms);
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+  }
+
   /* ---------- Auto-detección de GIDs desde el pubhtml publicado ---------- */
   async function autoDetectGids() {
+    const allConfigured = Object.keys(CONFIG.SHEETS).every(k => CONFIG.SHEETS[k].gid !== null && CONFIG.SHEETS[k].gid !== undefined);
+    if (allConfigured) {
+      // Los 4 GID ya están fijados manualmente: no hace falta ni una petición de red extra.
+      Object.keys(CONFIG.SHEETS).forEach(key => { state.gids[key] = CONFIG.SHEETS[key].gid; });
+      return state.gids;
+    }
     try {
-      const res = await fetch(pubhtmlUrl(), { cache: 'no-store' });
+      const res = await withTimeout(fetch(pubhtmlUrl(), { cache: 'no-store' }), 8000, 'auto-detección de GID');
       const html = await res.text();
       const found = {};
       // Patrón típico de Google en la barra de pestañas del publish-to-web
@@ -882,14 +897,15 @@ const DataLayer = (() => {
         if (entryName) state.gids[key] = found[entryName];
       });
     } catch (e) {
-      console.warn('Auto-detección de GIDs falló, se usará configuración manual.', e);
+      console.warn('Auto-detección de GIDs falló o tardó demasiado; se usará solo la configuración manual.', e);
+      Object.keys(CONFIG.SHEETS).forEach(key => { if (CONFIG.SHEETS[key].gid !== null) state.gids[key] = CONFIG.SHEETS[key].gid; });
     }
     return state.gids;
   }
 
   /* ---------- Descarga y parseo de una hoja (CSV) ---------- */
   function fetchSheetCSV(gid) {
-    return new Promise((resolve, reject) => {
+    const p = new Promise((resolve, reject) => {
       if (!gid && gid !== 0) return resolve({ meta: {}, data: [] });
       Papa.parse(csvUrl(gid), {
         download: true,
@@ -900,6 +916,7 @@ const DataLayer = (() => {
         error: err => reject(err)
       });
     });
+    return withTimeout(p, 20000, `descarga de hoja (gid=${gid})`);
   }
 
   /* ---------- Mapeo de columnas ---------- */
@@ -1908,15 +1925,27 @@ const MapModule = (() => {
     if (hadCache) renderAll();
 
     setStatus('loading');
+    const slowHint = setTimeout(() => {
+      if (els.statusMsg.textContent.startsWith('Cargando')) setStatus('loading', 'Esto está tardando más de lo normal... revisando conexión con Google Sheets');
+    }, 6000);
+
     let state;
     try {
-      await DataLayer.loadAll();
+      await Promise.race([
+        DataLayer.loadAll(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT_GLOBAL')), 30000))
+      ]);
       state = DataLayer.getState();
     } catch (e) {
+      clearTimeout(slowHint);
       console.error('Fallo al descargar/parsear las hojas de Google Sheets:', e);
-      setStatus('error', 'Error al conectar con Google Sheets. Revisa tu conexión a internet.');
+      const timedOut = e && e.message && e.message.includes('TIMEOUT');
+      setStatus('error', timedOut
+        ? 'Google Sheets está tardando demasiado en responder (más de 30s). Verifica que el Sheet siga publicado y que los GID en js/data.js sean correctos.'
+        : 'Error al conectar con Google Sheets. Revisa tu conexión a internet.');
       return;
     }
+    clearTimeout(slowHint);
 
     if (state.error === 'NO_DATA') {
       const missing = Object.entries(state.gids).filter(([, v]) => !v && v !== 0).map(([k]) => k);
