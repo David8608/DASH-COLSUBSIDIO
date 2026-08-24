@@ -1910,19 +1910,26 @@ const MapModule = (() => {
 
   document.addEventListener('DOMContentLoaded', () => {
     const ready = window.__libsReady || Promise.resolve();
-    ready.catch(() => {}).then(init);
+    ready.catch(() => {}).then(init).catch(e => {
+      console.error('Fallo crítico al iniciar el dashboard:', e);
+      const msg = document.getElementById('statusMsg');
+      const dot = document.getElementById('statusDot');
+      if (msg) msg.textContent = 'Error crítico al iniciar. Abre la consola (F12) y comparte el mensaje en rojo.';
+      if (dot) dot.className = 'status-dot error';
+    });
   });
 
   async function init() {
     cacheEls();
-    wireStaticUI();
+    setStatus('loading', 'Iniciando...');
+    safe('interfaz estática', () => wireStaticUI());
 
     if (typeof Chart === 'undefined' || typeof L === 'undefined' || typeof Papa === 'undefined') {
-      setStatus('error', 'No se pudieron cargar las librerías externas (Chart.js/Leaflet/PapaParse). Revisa tu conexión a internet o si tu red bloquea CDNs.');
+      console.warn('Alguna librería externa no cargó:', { Chart: typeof Chart, L: typeof L, Papa: typeof Papa });
+      setStatus('loading', 'Advertencia: alguna librería externa no cargó (revisa la consola). Continuando de todas formas...');
     }
 
-    const hadCache = DataLayer.loadFromCacheIfAny();
-    if (hadCache) renderAll();
+    safe('carga de caché local', () => { if (DataLayer.loadFromCacheIfAny()) renderAll(); });
 
     setStatus('loading');
     const slowHint = setTimeout(() => {
@@ -1962,10 +1969,10 @@ const MapModule = (() => {
     }
 
     safe('inicialización de filtros', () => FiltersModule.init(state.rawRows, els.filtersBar, onFiltersChanged));
-    renderAll();
+    safe('render principal', () => renderAll());
     safe('auto-actualización', () => DataLayer.startAutoRefresh((newState) => {
       safe('actualización de filtros', () => FiltersModule.updateData(newState.rawRows));
-      renderAll();
+      safe('render principal (auto-refresh)', () => renderAll());
     }));
   }
 
@@ -2029,7 +2036,9 @@ const MapModule = (() => {
     if (els.mapMetricSelect) els.mapMetricSelect.addEventListener('change', () => renderMap());
     if (els.mapLevelSelect) els.mapLevelSelect.addEventListener('change', () => renderMap());
 
-    MapModule.init('mapCoverage', (place) => { /* Interactividad: click en municipio resalta */ flashToast(`Mostrando datos de ${place}`); });
+    safe('inicialización del mapa', () => {
+      MapModule.init('mapCoverage', (place) => { flashToast(`Mostrando datos de ${place}`); });
+    });
 
     setInterval(() => { const st = DataLayer.getState(); if (st.lastUpdated) els.lastUpdated.textContent = Utils.formatDateTime(st.lastUpdated); }, 30000);
   }
@@ -2071,12 +2080,20 @@ const MapModule = (() => {
   function safe(label, fn) {
     try { fn(); } catch (e) { console.error(`Error en ${label}:`, e); }
   }
+  function safeGet(fn, fallback) {
+    try { return fn(); } catch (e) { console.error('Error:', e); return fallback; }
+  }
 
   function renderAll() {
-    const state = DataLayer.getState();
-    if (state.lastUpdated) els.lastUpdated.textContent = Utils.formatDateTime(state.lastUpdated);
-    filteredRows = getFilteredRows();
-    const pcRows = getFilteredPercapita();
+    try {
+      const state = DataLayer.getState();
+      if (state.lastUpdated) els.lastUpdated.textContent = Utils.formatDateTime(state.lastUpdated);
+      filteredRows = getFilteredRows();
+    } catch (e) {
+      console.error('Error preparando datos filtrados para renderAll:', e);
+      filteredRows = [];
+    }
+    const pcRows = safeGet(() => getFilteredPercapita(), []);
 
     safe('KPIs', () => renderKPIs(filteredRows));
     safe('KPIs Indicadores', () => renderKPIsIndicadores(filteredRows));
