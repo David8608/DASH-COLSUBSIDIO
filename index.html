@@ -230,9 +230,32 @@ body.sidebar-collapsed .nav-item { justify-content: center; }
   padding: 16px 18px; box-shadow: var(--shadow-sm);
 }
 .card h3 { font-size: 13.5px; color: var(--grey-700); margin-bottom: 12px; font-weight: 700; }
+.chart-subtitle { font-size: 11.5px; color: var(--grey-500); margin: -8px 0 12px; }
 .card--full { grid-column: 1 / -1; }
 .chart-box { position: relative; height: 260px; }
 .chart-box--tall { height: 520px; }
+
+.chart-pagination {
+  display: flex; align-items: center; gap: 10px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--grey-100);
+}
+.pag-btn {
+  width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--grey-200); background: var(--white);
+  color: var(--blue-700); font-size: 15px; line-height: 1; display: flex; align-items: center; justify-content: center;
+  flex: none; font-weight: 700; transition: background .15s;
+}
+.pag-btn:hover:not(:disabled) { background: var(--blue-50); }
+.pag-btn:disabled { opacity: .35; cursor: not-allowed; }
+.pag-slider {
+  flex: 1; height: 4px; -webkit-appearance: none; appearance: none; background: var(--grey-200); border-radius: 999px; outline: none;
+}
+.pag-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--blue-600); cursor: pointer; border: 3px solid var(--white); box-shadow: 0 0 0 1px var(--blue-600);
+}
+.pag-slider::-moz-range-thumb {
+  width: 16px; height: 16px; border-radius: 50%; background: var(--blue-600); cursor: pointer; border: 3px solid var(--white); box-shadow: 0 0 0 1px var(--blue-600);
+}
+.pag-label { font-size: 11.5px; color: var(--grey-500); font-weight: 600; white-space: nowrap; font-family: var(--font-mono); min-width: 70px; text-align: right; }
 .chart-box--scrollx { height: 300px; overflow-x: auto; overflow-y: hidden; }
 .chart-box--scrollx .chart-inner-wide { height: 100%; min-width: 100%; position: relative; }
 .chart-box--scrolly { height: 420px; overflow-y: auto; overflow-x: hidden; }
@@ -417,12 +440,37 @@ tbody tr:hover { background: var(--grey-50); }
 
       <div class="chart-grid chart-grid--1">
         <div class="card card--full">
-          <h3>Puntos de venta — volumen de servicios (todos)</h3>
-          <div class="chart-box chart-box--scrollx"><div id="wrapPuntoVentaVolumen" class="chart-inner-wide"><canvas id="chartPuntoVentaVolumen"></canvas></div></div>
+          <h3>Puntos de venta — volumen de servicios</h3>
+          <p class="chart-subtitle">Todos los puntos de venta, ordenados de mayor a menor</p>
+          <div class="chart-box"><canvas id="chartPuntoVentaVolumen"></canvas></div>
+          <div class="chart-pagination" id="pagPuntoVentaVolumen">
+            <button class="pag-btn" data-act="prev" aria-label="Anterior">‹</button>
+            <input type="range" class="pag-slider" min="0" max="0" value="0">
+            <button class="pag-btn" data-act="next" aria-label="Siguiente">›</button>
+            <span class="pag-label">—</span>
+          </div>
         </div>
         <div class="card card--full">
-          <h3>Puntos de venta — efectividad (todos)</h3>
-          <div class="chart-box chart-box--scrolly"><div id="wrapPuntoVentaEfectividad" class="chart-inner-tall"><canvas id="chartPuntoVentaEfectividad"></canvas></div></div>
+          <h3>Puntos de venta — efectividad</h3>
+          <p class="chart-subtitle">% de servicios efectivos por punto de venta</p>
+          <div class="chart-box"><canvas id="chartPuntoVentaEfectividad"></canvas></div>
+          <div class="chart-pagination" id="pagPuntoVentaEfectividad">
+            <button class="pag-btn" data-act="prev" aria-label="Anterior">‹</button>
+            <input type="range" class="pag-slider" min="0" max="0" value="0">
+            <button class="pag-btn" data-act="next" aria-label="Siguiente">›</button>
+            <span class="pag-label">—</span>
+          </div>
+        </div>
+        <div class="card card--full">
+          <h3>Novedades por Punto de Venta</h3>
+          <p class="chart-subtitle">Total de servicios vs. cerrados con novedad, por punto de venta</p>
+          <div class="chart-box"><canvas id="chartNovedadPuntoVenta"></canvas></div>
+          <div class="chart-pagination" id="pagNovedadPuntoVenta">
+            <button class="pag-btn" data-act="prev" aria-label="Anterior">‹</button>
+            <input type="range" class="pag-slider" min="0" max="0" value="0">
+            <button class="pag-btn" data-act="next" aria-label="Siguiente">›</button>
+            <span class="pag-label">—</span>
+          </div>
         </div>
       </div>
     </section>
@@ -1552,46 +1600,113 @@ const ChartsModule = (() => {
   }
 
   /* ---------- Variantes "mostrar todas las categorías" con contenedor deslizable ---------- */
-  const SCROLL_CHART_CAP = 250;
+  /* =========================================================================
+     Paginación de gráficos con muchas categorías (cientos/miles de valores).
+     En vez de intentar mostrarlas todas de una (lento y difícil de leer),
+     se pagina con botones ‹ › y un control deslizante, igual que un listado.
+     ========================================================================= */
+  const paginationState = {}; // chartId -> { entries, page, pageSize, seriesCount }
 
-  function renderAllBarsScrollV(id, wrapId, rows, keyFn, color = '#2563EB') {
-    const map = groupCount(rows, keyFn);
-    let entries = Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
-    const truncated = entries.length > SCROLL_CHART_CAP;
-    entries = entries.slice(0, SCROLL_CHART_CAP);
-    const wrap = document.getElementById(wrapId);
-    if (wrap) {
-      const minWidth = wrap.parentElement ? wrap.parentElement.clientWidth : 600;
-      wrap.style.width = Math.max(entries.length * 52, minWidth) + 'px';
-    }
-    upsert(id, 'bar', {
-      labels: entries.map(e => e[0]),
-      datasets: [{ label: 'Servicios', data: entries.map(e => e[1]), backgroundColor: color, borderRadius: 4 }]
-    }, { plugins: { legend: { display: false }, subtitle: truncated ? { display: true, text: `Mostrando los ${SCROLL_CHART_CAP} de mayor volumen` } : undefined } });
+  function wirePaginationControls(pagId, chartId) {
+    const pagEl = document.getElementById(pagId);
+    if (!pagEl || pagEl.dataset.wired) return;
+    pagEl.dataset.wired = '1';
+    const prevBtn = pagEl.querySelector('[data-act="prev"]');
+    const nextBtn = pagEl.querySelector('[data-act="next"]');
+    const slider = pagEl.querySelector('.pag-slider');
+    prevBtn.addEventListener('click', () => {
+      const st = paginationState[chartId];
+      if (st && st.page > 0) { st.page--; renderPaginationPage(chartId, pagId); }
+    });
+    nextBtn.addEventListener('click', () => {
+      const st = paginationState[chartId];
+      if (!st) return;
+      const maxPage = Math.max(0, Math.ceil(st.entries.length / st.pageSize) - 1);
+      if (st.page < maxPage) { st.page++; renderPaginationPage(chartId, pagId); }
+    });
+    slider.addEventListener('input', () => {
+      const st = paginationState[chartId];
+      if (!st) return;
+      st.page = Number(slider.value) || 0;
+      renderPaginationPage(chartId, pagId);
+    });
   }
 
-  function renderAllRateBarScrollH(id, wrapId, rows, keyFn, predicateFn, color = '#16A34A', minSample = 1) {
-    const totalMap = new Map(), hitMap = new Map();
+  function renderPaginationPage(chartId, pagId) {
+    const st = paginationState[chartId];
+    if (!st) return;
+    const start = st.page * st.pageSize;
+    const pageEntries = st.entries.slice(start, start + st.pageSize);
+    const chart = registry[chartId];
+    if (chart) {
+      chart.data.labels = pageEntries.map(e => e.label);
+      chart.data.datasets.forEach((ds, i) => { ds.data = pageEntries.map(e => e.values[i]); });
+      chart.update();
+    }
+    const pagEl = document.getElementById(pagId);
+    if (!pagEl) return;
+    const total = st.entries.length;
+    const from = total ? start + 1 : 0;
+    const to = Math.min(start + st.pageSize, total);
+    pagEl.querySelector('.pag-label').textContent = `${Utils.formatNumber(from)}-${Utils.formatNumber(to)} de ${Utils.formatNumber(total)}`;
+    pagEl.querySelector('[data-act="prev"]').disabled = st.page === 0;
+    pagEl.querySelector('[data-act="next"]').disabled = to >= total;
+    const maxPage = Math.max(0, Math.ceil(total / st.pageSize) - 1);
+    const slider = pagEl.querySelector('.pag-slider');
+    slider.max = maxPage;
+    slider.value = st.page;
+    slider.style.display = maxPage > 0 ? '' : 'none';
+  }
+
+  /* ---------- Paginado: una sola serie (ej. volumen o % efectividad por categoría) ---------- */
+  function renderPaginatedSingle(chartId, pagId, rows, keyFn, opts) {
+    const { label = 'Servicios', color = '#2563EB', indexAxis = 'x', pageSize = 12, isRate = false, predicateFn = null, minSample = 1 } = opts || {};
+    let entries;
+    if (isRate) {
+      const totalMap = new Map(), hitMap = new Map();
+      rows.forEach(r => {
+        const k = keyFn(r);
+        if (!k || k === 'Sin dato') return;
+        totalMap.set(k, (totalMap.get(k) || 0) + 1);
+        if (predicateFn(r)) hitMap.set(k, (hitMap.get(k) || 0) + 1);
+      });
+      entries = Array.from(totalMap.entries()).filter(([, c]) => c >= minSample)
+        .map(([k, c]) => ({ label: k, values: [Number((((hitMap.get(k) || 0) / c) * 100).toFixed(1))] }));
+      entries.sort((a, b) => b.values[0] - a.values[0]);
+    } else {
+      const map = groupCount(rows, keyFn);
+      entries = Array.from(map.entries()).map(([k, c]) => ({ label: k, values: [c] })).sort((a, b) => b.values[0] - a.values[0]);
+    }
+
+    paginationState[chartId] = { entries, page: 0, pageSize };
+    upsert(chartId, 'bar', { labels: [], datasets: [{ label, data: [], backgroundColor: color, borderRadius: 4 }] }, {
+      indexAxis, plugins: { legend: { display: false } },
+      scales: isRate ? { x: indexAxis === 'y' ? { max: 100, ticks: { callback: v => v + '%' } } : undefined, y: indexAxis === 'x' ? { max: 100, ticks: { callback: v => v + '%' } } : undefined } : undefined
+    });
+    renderPaginationPage(chartId, pagId);
+    wirePaginationControls(pagId, chartId);
+  }
+
+  /* ---------- Paginado: dos series agrupadas (ej. Total vs. Con Novedad) ---------- */
+  function renderPaginatedGrouped(chartId, pagId, rows, keyFn, seriesDefs, pageSize = 12) {
+    const totalMap = new Map(), subMap = new Map();
     rows.forEach(r => {
       const k = keyFn(r);
       if (!k || k === 'Sin dato') return;
       totalMap.set(k, (totalMap.get(k) || 0) + 1);
-      if (predicateFn(r)) hitMap.set(k, (hitMap.get(k) || 0) + 1);
+      if (seriesDefs[1].predicateFn(r)) subMap.set(k, (subMap.get(k) || 0) + 1);
     });
-    let entries = Array.from(totalMap.entries()).filter(([, c]) => c >= minSample)
-      .map(([k, c]) => [k, ((hitMap.get(k) || 0) / c) * 100, c]);
-    entries.sort((a, b) => b[2] - a[2]); // prioriza por volumen de muestra, más representativo
-    const truncated = entries.length > SCROLL_CHART_CAP;
-    entries = entries.slice(0, SCROLL_CHART_CAP).sort((a, b) => b[1] - a[1]);
-    const wrap = document.getElementById(wrapId);
-    if (wrap) {
-      const minHeight = wrap.parentElement ? wrap.parentElement.clientHeight : 300;
-      wrap.style.height = Math.max(entries.length * 30, minHeight) + 'px';
-    }
-    upsert(id, 'bar', {
-      labels: entries.map(e => e[0]),
-      datasets: [{ label: '% Efectividad', data: entries.map(e => Number(e[1].toFixed(1))), backgroundColor: color, borderRadius: 4 }]
-    }, { indexAxis: 'y', plugins: { legend: { display: false }, subtitle: truncated ? { display: true, text: `Mostrando los ${SCROLL_CHART_CAP} con más servicios` } : undefined }, scales: { x: { max: 100, ticks: { callback: v => v + '%' } } } });
+    const entries = Array.from(totalMap.entries())
+      .map(([k, total]) => ({ label: k, values: [total, subMap.get(k) || 0] }))
+      .sort((a, b) => b.values[0] - a.values[0]);
+
+    paginationState[chartId] = { entries, page: 0, pageSize };
+    upsert(chartId, 'bar', {
+      labels: [],
+      datasets: seriesDefs.map(s => ({ label: s.label, data: [], backgroundColor: s.color, borderRadius: 4 }))
+    }, { plugins: { legend: { display: true } } });
+    renderPaginationPage(chartId, pagId);
+    wirePaginationControls(pagId, chartId);
   }
 
   /* ---------- Tiempos: promedio mensual ---------- */
@@ -1790,7 +1905,7 @@ const ChartsModule = (() => {
 
   return {
     renderByMonth, renderByDay, renderByHour, renderTopBar, renderTopBarV, renderDoughnut, renderRateByMonth,
-    renderRateBarH, renderAllBarsScrollV, renderAllRateBarScrollH,
+    renderRateBarH, renderPaginatedSingle, renderPaginatedGrouped,
     renderAvgTimeByMonth, renderAvgTimeTopBar, renderAvgTimeGrouped,
     renderProductivity, renderSlaDistribution, renderSlaGauge,
     renderPercapitaMonthly, renderPercapitaByCity, renderPercapitaByFarmacia, renderPercapitaVsServicios,
@@ -2358,8 +2473,10 @@ const MapModule = (() => {
     ChartsModule.renderRateBarH('chartTipoServicioEfectividad', rows, r => r.tipoServicio, r => r.estado === 'EFECTIVO', 10, '#16A34A', 3);
     ChartsModule.renderDoughnut('chartNovedadTorta', rows.filter(r => r.esNovedadReal), r => r.estadoRaw, 10);
     ChartsModule.renderTopBarV('chartNovedadCiudad', rows.filter(r => r.esNovedadReal), r => r.ciudad, 15, '#F59E0B');
-    ChartsModule.renderAllBarsScrollV('chartPuntoVentaVolumen', 'wrapPuntoVentaVolumen', rows, r => r.puntoVenta, '#2563EB');
-    ChartsModule.renderAllRateBarScrollH('chartPuntoVentaEfectividad', 'wrapPuntoVentaEfectividad', rows, r => r.puntoVenta, r => r.estado === 'EFECTIVO', '#16A34A');
+    ChartsModule.renderPaginatedSingle('chartPuntoVentaVolumen', 'pagPuntoVentaVolumen', rows, r => r.puntoVenta, { label: 'Servicios', color: '#2563EB', pageSize: 12 });
+    ChartsModule.renderPaginatedSingle('chartPuntoVentaEfectividad', 'pagPuntoVentaEfectividad', rows, r => r.puntoVenta, { label: '% Efectividad', color: '#16A34A', indexAxis: 'y', isRate: true, predicateFn: r => r.estado === 'EFECTIVO', minSample: 3, pageSize: 12 });
+    ChartsModule.renderPaginatedGrouped('chartNovedadPuntoVenta', 'pagNovedadPuntoVenta', rows, r => r.puntoVenta,
+      [{ label: 'Total', color: '#93C5FD' }, { label: 'Con Novedad', color: '#DC2626', predicateFn: r => r.estado === 'NOVEDAD' }], 12);
 
     // Operación
     ChartsModule.renderTopBar('chartByCity', rows, r => r.ciudad, 15, '#2563EB');
