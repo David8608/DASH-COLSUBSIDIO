@@ -150,6 +150,7 @@ button { cursor: pointer; }
 .filter-dd__actions { display: flex; gap: 8px; margin-bottom: 6px; }
 .filter-dd__actions button { background: none; border: none; color: var(--blue-600); font-size: 11.5px; font-weight: 700; padding: 0; }
 .filter-dd__list { max-height: 220px; overflow-y: auto; }
+.filter-dd__hint { font-size: 10.5px; color: var(--grey-500); padding: 2px 4px 6px; }
 .filter-dd__opt { display: flex; align-items: center; gap: 8px; padding: 5px 4px; font-size: 12.5px; border-radius: 6px; }
 .filter-dd__opt:hover { background: var(--grey-50); }
 .filter-dd__opt input { accent-color: var(--blue-600); }
@@ -165,6 +166,11 @@ button { cursor: pointer; }
 .setup-banner__msg { line-height: 1.5; }
 .setup-banner__msg a { color: #92400E; font-weight: 700; }
 .setup-banner__msg code { background: #FEF3C7; padding: 1px 6px; border-radius: 4px; font-family: var(--font-mono); }
+.setup-banner__close {
+  border: none; background: transparent; color: #92400E; font-size: 20px; line-height: 1; cursor: pointer;
+  padding: 2px 6px; border-radius: 6px; align-self: flex-start;
+}
+.setup-banner__close:hover { background: rgba(146,64,14,.12); }
 
 /* ================= LAYOUT ================= */
 .app-shell { display: flex; min-height: calc(100vh - var(--topbar-h) - var(--filters-h)); }
@@ -359,9 +365,10 @@ tbody tr:hover { background: var(--grey-50); }
 <div id="setupBanner" class="setup-banner" style="display:none">
   <div class="setup-banner__icon">⚙️</div>
   <div class="setup-banner__body">
-    <div class="setup-banner__title">Falta un dato para conectar con Google Sheets</div>
+    <div id="setupBannerTitle" class="setup-banner__title">Falta un dato para conectar con Google Sheets</div>
     <div id="setupBannerMsg" class="setup-banner__msg"></div>
   </div>
+  <button id="setupBannerClose" class="setup-banner__close" title="Descartar" aria-label="Descartar">×</button>
 </div>
 
 <div class="app-shell">
@@ -1291,27 +1298,44 @@ const FiltersModule = (() => {
     const list = document.createElement('div');
     list.className = 'filter-dd__list';
 
+    const RENDER_CAP = 300;
+    const hint = document.createElement('div');
+    hint.className = 'filter-dd__hint';
+    panel.insertBefore(hint, list);
+
     function renderList(filterText) {
-      list.innerHTML = '';
       const norm = Utils.normalize(filterText || '');
-      options.filter(o => !norm || Utils.normalize(String(field.display ? field.display(o) : o)).includes(norm))
-        .forEach(o => {
-          const id = `f-${field.key}-${Utils.slugify(String(o))}`;
-          const row = document.createElement('label');
-          row.className = 'filter-dd__opt';
-          const checked = activeFilters[field.key].has(o);
-          row.innerHTML = `<input type="checkbox" id="${id}" ${checked ? 'checked' : ''}><span>${field.display ? field.display(o) : o}</span>`;
-          row.querySelector('input').addEventListener('change', e => {
-            if (e.target.checked) activeFilters[field.key].add(o);
-            else activeFilters[field.key].delete(o);
-            refreshBadge(field.key);
-            onChangeCb(getActiveFilters());
-          });
-          list.appendChild(row);
+      const matched = options.filter(o => !norm || Utils.normalize(String(field.display ? field.display(o) : o)).includes(norm));
+      const shown = matched.slice(0, RENDER_CAP);
+
+      const frag = document.createDocumentFragment();
+      shown.forEach(o => {
+        const row = document.createElement('label');
+        row.className = 'filter-dd__opt';
+        const checked = activeFilters[field.key].has(o);
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = checked;
+        input.addEventListener('change', e => {
+          if (e.target.checked) activeFilters[field.key].add(o);
+          else activeFilters[field.key].delete(o);
+          refreshBadge(field.key);
+          onChangeCb(getActiveFilters());
         });
+        const span = document.createElement('span');
+        span.textContent = field.display ? field.display(o) : o;
+        row.appendChild(input);
+        row.appendChild(span);
+        frag.appendChild(row);
+      });
+      list.innerHTML = '';
+      list.appendChild(frag);
+      hint.textContent = matched.length > RENDER_CAP
+        ? `Mostrando ${RENDER_CAP} de ${matched.length} — escribe para buscar más`
+        : (matched.length ? '' : 'Sin resultados');
     }
     renderList('');
-    search.addEventListener('input', () => renderList(search.value));
+    search.addEventListener('input', Utils.debounce(() => renderList(search.value), 150));
     actions.querySelectorAll('button').forEach(b => {
       b.addEventListener('click', () => {
         if (b.dataset.act === 'all') options.forEach(o => activeFilters[field.key].add(o));
@@ -1528,9 +1552,13 @@ const ChartsModule = (() => {
   }
 
   /* ---------- Variantes "mostrar todas las categorías" con contenedor deslizable ---------- */
+  const SCROLL_CHART_CAP = 250;
+
   function renderAllBarsScrollV(id, wrapId, rows, keyFn, color = '#2563EB') {
     const map = groupCount(rows, keyFn);
-    const entries = Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+    let entries = Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
+    const truncated = entries.length > SCROLL_CHART_CAP;
+    entries = entries.slice(0, SCROLL_CHART_CAP);
     const wrap = document.getElementById(wrapId);
     if (wrap) {
       const minWidth = wrap.parentElement ? wrap.parentElement.clientWidth : 600;
@@ -1539,7 +1567,7 @@ const ChartsModule = (() => {
     upsert(id, 'bar', {
       labels: entries.map(e => e[0]),
       datasets: [{ label: 'Servicios', data: entries.map(e => e[1]), backgroundColor: color, borderRadius: 4 }]
-    }, { plugins: { legend: { display: false } } });
+    }, { plugins: { legend: { display: false }, subtitle: truncated ? { display: true, text: `Mostrando los ${SCROLL_CHART_CAP} de mayor volumen` } : undefined } });
   }
 
   function renderAllRateBarScrollH(id, wrapId, rows, keyFn, predicateFn, color = '#16A34A', minSample = 1) {
@@ -1551,8 +1579,10 @@ const ChartsModule = (() => {
       if (predicateFn(r)) hitMap.set(k, (hitMap.get(k) || 0) + 1);
     });
     let entries = Array.from(totalMap.entries()).filter(([, c]) => c >= minSample)
-      .map(([k, c]) => [k, ((hitMap.get(k) || 0) / c) * 100]);
-    entries.sort((a, b) => b[1] - a[1]);
+      .map(([k, c]) => [k, ((hitMap.get(k) || 0) / c) * 100, c]);
+    entries.sort((a, b) => b[2] - a[2]); // prioriza por volumen de muestra, más representativo
+    const truncated = entries.length > SCROLL_CHART_CAP;
+    entries = entries.slice(0, SCROLL_CHART_CAP).sort((a, b) => b[1] - a[1]);
     const wrap = document.getElementById(wrapId);
     if (wrap) {
       const minHeight = wrap.parentElement ? wrap.parentElement.clientHeight : 300;
@@ -1561,7 +1591,7 @@ const ChartsModule = (() => {
     upsert(id, 'bar', {
       labels: entries.map(e => e[0]),
       datasets: [{ label: '% Efectividad', data: entries.map(e => Number(e[1].toFixed(1))), backgroundColor: color, borderRadius: 4 }]
-    }, { indexAxis: 'y', plugins: { legend: { display: false } }, scales: { x: { max: 100, ticks: { callback: v => v + '%' } } } });
+    }, { indexAxis: 'y', plugins: { legend: { display: false }, subtitle: truncated ? { display: true, text: `Mostrando los ${SCROLL_CHART_CAP} con más servicios` } : undefined }, scales: { x: { max: 100, ticks: { callback: v => v + '%' } } } });
   }
 
   /* ---------- Tiempos: promedio mensual ---------- */
@@ -1888,7 +1918,16 @@ const MapModule = (() => {
 
     // Capa de calor: un punto por CADA servicio con coordenadas propias (AA/AB) → densidad real
     if (heatLayer) {
-      const heatPoints = rows.filter(r => r.lat !== null && r.lng !== null).map(r => [r.lat, r.lng, 0.55]);
+      let coordRows = rows.filter(r => r.lat !== null && r.lng !== null);
+      const HEAT_CAP = 15000;
+      if (coordRows.length > HEAT_CAP) {
+        // muestreo uniforme: conserva la forma de la distribución sin procesar cada punto
+        const step = coordRows.length / HEAT_CAP;
+        const sampled = [];
+        for (let i = 0; i < HEAT_CAP; i++) sampled.push(coordRows[Math.floor(i * step)]);
+        coordRows = sampled;
+      }
+      const heatPoints = coordRows.map(r => [r.lat, r.lng, 0.55]);
       heatLayer.setLatLngs(heatPoints);
     }
 
@@ -2006,7 +2045,7 @@ const MapModule = (() => {
       if (emptySheets.length) {
         const labels = { hoja3: 'Hoja 3 (Nov-Dic)', percapita: 'Percápita' };
         const labelList = emptySheets.map(t => labels[t]);
-        setStatus('ok', `Datos sincronizados, pero ${labelList.join(' y ')} llegaron vacías — revisa esos GID en js/data.js.`);
+        setStatus('ok', `Datos sincronizados — ${labelList.join(' y ')} aún sin filas (normal si llegan más adelante).`);
         showSetupBanner(labelList, true);
       } else {
         setStatus('ok');
@@ -2041,22 +2080,35 @@ const MapModule = (() => {
     els.mapLevelSelect = document.getElementById('mapLevelSelect');
     els.setupBanner = document.getElementById('setupBanner');
     els.setupBannerMsg = document.getElementById('setupBannerMsg');
+    els.setupBannerTitle = document.getElementById('setupBannerTitle');
+    els.setupBannerClose = document.getElementById('setupBannerClose');
   }
 
+  let dismissedBannerKey = null;
   function showSetupBanner(missing, isEmptyWarning) {
     if (!els.setupBanner) return;
+    const bannerKey = (isEmptyWarning ? 'empty:' : 'missing:') + missing.join(',');
+    if (dismissedBannerKey === bannerKey) return; // el usuario ya descartó este mismo aviso en esta sesión
     const pubUrl = `https://docs.google.com/spreadsheets/d/e/${DataLayer.CONFIG.PUBLISH_TOKEN}/pubhtml`;
     if (isEmptyWarning) {
-      els.setupBannerMsg.innerHTML = `<b>${missing.join(' y ')}</b> se leyeron correctamente pero no traían filas. El GID configurado
-        probablemente no corresponde a esa pestaña. Abre <a href="${pubUrl}" target="_blank" rel="noopener">tu Google Sheet publicado</a>,
-        haz clic en la pestaña correspondiente y copia el número después de <code>#gid=</code> — luego actualízalo en
-        <code>js/data.js</code>, dentro de <code>CONFIG.SHEETS</code>. El resto del dashboard funciona normal con los datos ya cargados.`;
+      els.setupBannerTitle.textContent = 'Aviso informativo — no bloquea el dashboard';
+      els.setupBannerMsg.innerHTML = `<b>${missing.join(' y ')}</b> todavía no tienen filas — normal si esa información se va a
+        diligenciar más adelante; en cuanto existan datos en esas pestañas, el dashboard los tomará automáticamente en la próxima
+        actualización, sin que tengas que hacer nada. El resto del dashboard funciona con normalidad mientras tanto. Si el GID
+        configurado fuera incorrecto, puedes verificarlo en <a href="${pubUrl}" target="_blank" rel="noopener">tu Google Sheet publicado</a>.`;
     } else {
+      els.setupBannerTitle.textContent = 'Falta un dato para conectar con Google Sheets';
       els.setupBannerMsg.innerHTML = `Abre <a href="${pubUrl}" target="_blank" rel="noopener">tu Google Sheet publicado</a>,
         haz clic en cada pestaña (${missing.join(', ')}) y copia el número que aparece después de <code>#gid=</code> en la URL.
         Luego pégalos en <code>js/data.js</code>, dentro de <code>CONFIG.SHEETS</code>, y vuelve a guardar el archivo.`;
     }
     els.setupBanner.style.display = 'flex';
+    if (els.setupBannerClose) {
+      els.setupBannerClose.onclick = () => {
+        dismissedBannerKey = bannerKey;
+        els.setupBanner.style.display = 'none';
+      };
+    }
   }
   function hideSetupBanner() { if (els.setupBanner) els.setupBanner.style.display = 'none'; }
 
@@ -2072,7 +2124,7 @@ const MapModule = (() => {
       els.navItems.forEach(n => n.classList.remove('active'));
       item.classList.add('active');
       els.sections.forEach(s => s.classList.toggle('active', s.id === 'section-' + target));
-      if (target === 'cobertura') MapModule.invalidateSize();
+      if (target === 'cobertura') { MapModule.invalidateSize(); if (mapDirty) safe('mapa (diferido)', () => renderMap()); }
     }));
 
     els.tableSearch.addEventListener('input', Utils.debounce(e => { tableState.search = e.target.value; tableState.page = 1; renderTable(); }, 150));
@@ -2336,7 +2388,11 @@ const MapModule = (() => {
     ChartsModule.renderPercapitaVsServicios(pcRows, rows);
   }
 
+  let mapDirty = false;
   function renderMap() {
+    const section = document.getElementById('section-cobertura');
+    if (!section || !section.classList.contains('active')) { mapDirty = true; return; }
+    mapDirty = false;
     const level = els.mapLevelSelect ? els.mapLevelSelect.value : 'ciudad';
     const metric = els.mapMetricSelect ? els.mapMetricSelect.value : 'total';
     MapModule.render(filteredRows, getFilteredPercapita(), level === 'municipio', metric);
