@@ -438,7 +438,6 @@ tbody tr:hover { background: var(--grey-50); }
     <div class="nav-item" data-section="sla"><span>⏱</span>SLA</div>
     <div class="nav-item" data-section="cobertura"><span>🌎</span>Cobertura</div>
     <div class="nav-item" data-section="percapita"><span>👥</span>Percápita</div>
-    <div class="nav-item" data-section="productividad"><span>📈</span>Productividad</div>
     <div class="nav-item" data-section="alertas"><span>⚠</span>Alertas <span id="alertsBadge" class="nav-badge"></span></div>
     <div class="nav-item" data-section="detalle"><span>📋</span>Detalle</div>
     <div class="nav-item" data-section="diagnostico"><span>🔍</span>Diagnóstico</div>
@@ -518,7 +517,6 @@ tbody tr:hover { background: var(--grey-50); }
         <div class="card"><h3>Servicios por ciudad</h3><div class="chart-box"><canvas id="chartByCity"></canvas></div></div>
         <div class="card"><h3>Servicios por municipio</h3><div class="chart-box"><canvas id="chartByMunicipality"></canvas></div></div>
         <div class="card"><h3>Servicios por hora</h3><div class="chart-box"><canvas id="chartByHour"></canvas></div></div>
-        <div class="card"><h3>Productividad por coordinador</h3><div class="chart-box"><canvas id="chartProductivity"></canvas></div></div>
         <div class="card"><h3>% Cancelaciones por mes</h3><div class="chart-box"><canvas id="chartCancelaciones"></canvas></div></div>
         <div class="card"><h3>% Novedades por mes</h3><div class="chart-box"><canvas id="chartNovedades"></canvas></div></div>
         <div class="card card--full"><h3>% Cumplimiento por mes</h3><div class="chart-box"><canvas id="chartCumplimiento"></canvas></div></div>
@@ -566,14 +564,6 @@ tbody tr:hover { background: var(--grey-50); }
         <div class="card"><h3>Percápita por ciudad</h3><div class="chart-box"><canvas id="chartPercapitaCity"></canvas></div></div>
         <div class="card"><h3>Percápita por farmacia</h3><div class="chart-box"><canvas id="chartPercapitaFarmacia"></canvas></div></div>
         <div class="card"><h3>Percápita vs. Servicios</h3><div class="chart-box"><canvas id="chartPercapitaVsServicios"></canvas></div></div>
-      </div>
-    </section>
-
-    <!-- ---------- PRODUCTIVIDAD ---------- -->
-    <section id="section-productividad" class="section">
-      <h1 class="section-title">Productividad</h1>
-      <div class="chart-grid chart-grid--1">
-        <div class="card card--full"><h3>Servicios atendidos por coordinador</h3><div class="chart-box chart-box--tall"><canvas id="chartProductivity2"></canvas></div></div>
       </div>
     </section>
 
@@ -1414,7 +1404,7 @@ const FiltersModule = (() => {
     const RENDER_CAP = 300;
     const hint = document.createElement('div');
     hint.className = 'filter-dd__hint';
-    panel.insertBefore(hint, list);
+    panel.appendChild(hint);
 
     function renderList(filterText) {
       const norm = Utils.normalize(filterText || '');
@@ -1870,11 +1860,6 @@ const ChartsModule = (() => {
     }, { plugins: { legend: { display: false } }, scales: { y: { ticks: { callback: v => v + '%' } } } });
   }
 
-  /* ---------- Productividad por coordinador ---------- */
-  function renderProductivity(rows, id = 'chartProductivity') {
-    renderTopBar(id, rows, r => r.coordinador, 20, '#16A34A');
-  }
-
   /* ---------- Distribución SLA por rangos (tiempo de aceptación/entrega) ---------- */
   function renderSlaDistribution(rows) {
     const ranges = [
@@ -1972,7 +1957,7 @@ const ChartsModule = (() => {
     renderByMonth, renderByDay, renderByHour, renderTopBar, renderTopBarV, renderDoughnut, renderRateByMonth,
     renderRateBarH, renderPaginatedSingle, renderPaginatedGrouped,
     renderAvgTimeByMonth, renderAvgTimeTopBar, renderAvgTimeGrouped,
-    renderProductivity, renderSlaDistribution, renderSlaGauge,
+    renderSlaDistribution, renderSlaGauge,
     renderPercapitaMonthly, renderPercapitaByCity, renderPercapitaByFarmacia, renderPercapitaVsServicios,
     groupCount, topN, destroyAll, registry
   };
@@ -2569,8 +2554,6 @@ const MapModule = (() => {
     ChartsModule.renderRateByMonth('chartCancelaciones', rows, r => r.estado === 'CANCELADO', '#DC2626');
     ChartsModule.renderRateByMonth('chartNovedades', rows, r => r.estado === 'NOVEDAD', '#F59E0B');
     ChartsModule.renderRateByMonth('chartCumplimiento', rows, r => r.estado === 'EFECTIVO', '#16A34A');
-    ChartsModule.renderProductivity(rows, 'chartProductivity');
-    ChartsModule.renderProductivity(rows, 'chartProductivity2');
 
     // Tiempos (AM = creación/alistamiento, AN = aceptación/entrega)
     ChartsModule.renderAvgTimeByMonth('chartTiempoCreacionMes', rows, 'tiempoCreacion', '#2563EB', 'Creación/Alistamiento');
