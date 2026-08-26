@@ -966,7 +966,6 @@ const DataLayer = (() => {
         download: true,
         header: true,
         skipEmptyLines: true,
-        worker: true, // parsea en un hilo aparte: no bloquea la interfaz con hojas grandes
         transformHeader: h => h.trim(),
         complete: results => resolve(results),
         error: err => reject(err)
