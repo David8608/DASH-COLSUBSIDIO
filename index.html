@@ -939,7 +939,7 @@ const DataLayer = (() => {
     gids: { hoja1: null, hoja2: null, hoja3: null, percapita: null },
     ready: false,
     error: null,
-    diagnostics: { fieldMaps: {}, headers: {}, estadoCounts: {}, tiempoDescartados: 0, rowCounts: {}, coordSamples: { hoja1: [], hoja2: [], hoja3: [], percapita: [] } }
+    diagnostics: { fieldMaps: {}, headers: {}, estadoCounts: {}, tiempoDescartados: 0, rowCounts: {}, coordSamples: { hoja1: [], hoja2: [], hoja3: [], percapita: [] }, fechaFiltroSample: { hoja1: [], hoja2: [], hoja3: [], percapita: [] } }
   };
 
   /* ---------- Utilidad: evita que cualquier petición se quede esperando para siempre ---------- */
@@ -1031,11 +1031,13 @@ const DataLayer = (() => {
     TIEMPO_CREACION: ['TIEMPO CREACION A ACEPTACION', 'TIEMPO CREACION', 'TIEMPO ALISTAMIENTO'],
     TIEMPO_ACEPTACION: ['TIEMPO ACEPTACION A FINALIZACION', 'TIEMPO ACEPTACION', 'TIEMPO ENTREGA'],
     COORD_X: ['cx_cierre', 'LATITUD', 'LAT'],
-    COORD_Y: ['cy_cierre', 'LONGITUD', 'LON', 'LNG']
+    COORD_Y: ['cy_cierre', 'LONGITUD', 'LON', 'LNG'],
+    FECHA_FILTRO: [] // sin nombre: se resuelve solo por la letra AJ (ver LETTER_FALLBACK) porque el usuario pidió esa columna explícitamente
   };
   // Respaldo por letra exacta de columna, SOLO si el nombre no aparece en absoluto
   const LETTER_FALLBACK = {
     CIUDAD: 'AK', TIPO_SERVICIO: 'X', TIPO_SERVICIO_AG: 'AG', TIPO_CANAL: 'AF', CENLOG_Z: 'Z', CENLOG_Y: 'Y',
+    FECHA_FILTRO: 'AJ',
     TIEMPO_CREACION: 'AM', TIEMPO_ACEPTACION: 'AN', COORD_X: 'AA', COORD_Y: 'AB'
   };
 
@@ -1139,6 +1141,7 @@ const DataLayer = (() => {
     state.diagnostics.headers[sheetTag] = headers;
     state.diagnostics.rowCounts[sheetTag] = parsed.data.length;
     state.diagnostics.coordSamples[sheetTag] = [];
+    state.diagnostics.fechaFiltroSample[sheetTag] = [];
 
     const out = [];
     const n = parsed.data.length;
@@ -1147,6 +1150,21 @@ const DataLayer = (() => {
       const fecha = map.FECHA ? Utils.parseDate(row[map.FECHA]) : null;
       const anio = map.ANIO ? Utils.parseNumber(row[map.ANIO]) : (fecha ? fecha.getFullYear() : null);
       const mesNum = map.MES ? (Utils.parseNumber(row[map.MES]) || monthNameToNum(row[map.MES])) : (fecha ? fecha.getMonth() + 1 : null);
+
+      // Filtro de fecha (Desde/Hasta): por pedido explícito, se toma de la columna AJ, no de fecha_creacion.
+      const fechaFiltroRaw = map.FECHA_FILTRO ? row[map.FECHA_FILTRO] : null;
+      let fechaFiltro = fechaFiltroRaw ? Utils.parseDate(fechaFiltroRaw) : null;
+      if (!fechaFiltro && fechaFiltroRaw) {
+        // La columna AJ puede traer solo el nombre del mes (ej. "Agosto") en vez de una fecha exacta;
+        // en ese caso se usa el 1° de ese mes, para que el rango Desde/Hasta siga funcionando de forma
+        // consistente con el filtro "Mes (MES DATA)".
+        const mLabel = monthNameToNum(fechaFiltroRaw);
+        if (mLabel) fechaFiltro = new Date((anio || new Date().getFullYear()), mLabel - 1, 1);
+      }
+      if (fechaFiltroRaw && state.diagnostics.fechaFiltroSample[sheetTag].length < 5) {
+        state.diagnostics.fechaFiltroSample[sheetTag].push({ raw: fechaFiltroRaw, resolved: fechaFiltro ? fechaFiltro.toISOString().slice(0, 10) : '(no resuelto)' });
+      }
+
       const estadoRaw = map.ESTADO ? row[map.ESTADO] : '';
       if (estadoRaw) {
         const key = String(estadoRaw).trim();
@@ -1177,6 +1195,7 @@ const DataLayer = (() => {
       out.push({
         _sheet: sheetTag,
         fecha,
+        fechaFiltro,
         anio: anio || null,
         mes: mesNum || null,
         tipoCanal: map.TIPO_CANAL ? (row[map.TIPO_CANAL] || 'Sin dato').trim() : 'Sin dato',
@@ -1365,8 +1384,8 @@ const FiltersModule = (() => {
     const wrap = document.createElement('div');
     wrap.className = 'filter-date';
     wrap.innerHTML = `
-      <label title="Filtra por fecha_creacion (fecha exacta). Para el mes operativo tal como está en la hoja, usa el filtro 'Mes (MES DATA)'.">Desde (fecha creación) <input type="date" id="filterDateStart" value="${dateRange.start || ''}"></label>
-      <label title="Filtra por fecha_creacion (fecha exacta). Para el mes operativo tal como está en la hoja, usa el filtro 'Mes (MES DATA)'.">Hasta (fecha creación) <input type="date" id="filterDateEnd" value="${dateRange.end || ''}"></label>`;
+      <label title="Filtra por la columna AJ de la hoja.">Desde <input type="date" id="filterDateStart" value="${dateRange.start || ''}"></label>
+      <label title="Filtra por la columna AJ de la hoja.">Hasta <input type="date" id="filterDateEnd" value="${dateRange.end || ''}"></label>`;
     const startInput = wrap.querySelector('#filterDateStart');
     const endInput = wrap.querySelector('#filterDateEnd');
     startInput.addEventListener('change', () => { dateRange.start = startInput.value || null; onChangeCb(getActiveFilters()); });
@@ -1496,8 +1515,8 @@ const FiltersModule = (() => {
       const startTs = dateRange.start ? new Date(dateRange.start + 'T00:00:00').getTime() : null;
       const endTs = dateRange.end ? new Date(dateRange.end + 'T23:59:59').getTime() : null;
       out = out.filter(r => {
-        if (!r.fecha) return false;
-        const t = r.fecha.getTime();
+        if (!r.fechaFiltro) return false;
+        const t = r.fechaFiltro.getTime();
         if (startTs !== null && t < startTs) return false;
         if (endTs !== null && t > endTs) return false;
         return true;
@@ -2424,6 +2443,16 @@ const MapModule = (() => {
       if (diag.coordSamples[tag] && diag.coordSamples[tag].length) {
         lines.push(`Muestra cruda ${tag}:`);
         diag.coordSamples[tag].forEach(s => lines.push(`  X="${s.rawX}"  Y="${s.rawY}"  →  ${s.resolved}`));
+      }
+    });
+    lines.push('');
+    const withFechaFiltro = allRows.filter(r => r.fechaFiltro !== null && r.fechaFiltro !== undefined).length;
+    lines.push(`── FILTRO DE FECHA (columna AJ) ──`);
+    lines.push(`Servicios con fecha resuelta desde AJ: ${withFechaFiltro} de ${allRows.length} (${allRows.length ? Utils.formatPct(withFechaFiltro / allRows.length * 100) : '—'})`);
+    ['hoja1', 'hoja2'].forEach(tag => {
+      if (diag.fechaFiltroSample[tag] && diag.fechaFiltroSample[tag].length) {
+        lines.push(`Muestra cruda ${tag}:`);
+        diag.fechaFiltroSample[tag].forEach(s => lines.push(`  "${s.raw}"  →  ${s.resolved}`));
       }
     });
     box.textContent = lines.join('\n');
