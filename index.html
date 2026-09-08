@@ -921,7 +921,7 @@ const DataLayer = (() => {
       percapita: { label: 'Percápita', match: /PERC.?PITA/i, gid: 1298224280 }
     },
     EXCLUDE_SHEET: /VARIABLES/i,
-    REFRESH_INTERVAL_MS: 5 * 60 * 1000, // 5 minutos
+    REFRESH_INTERVAL_MS: 60 * 60 * 1000, // 60 minutos
     SLA_META_DEFAULT: 60 // minutos, usado solo si la hoja no trae columna de meta SLA
   };
 
@@ -1309,6 +1309,7 @@ const DataLayer = (() => {
 const FiltersModule = (() => {
 
   const FIELDS = [
+    { key: 'mes', label: 'Mes (MES DATA)', accessor: r => r.mes, display: v => Utils.MESES[v - 1] || v, sortNumeric: true },
     { key: 'tipoCanal', label: 'Tipo Canal', accessor: r => r.tipoCanal },
     { key: 'tipoServicio', label: 'Tipo de Servicio', accessor: r => r.tipoServicio },
     { key: 'tipoServicioAG', label: 'Tipo Servicio (AG)', accessor: r => r.tipoServicioAG },
@@ -1364,8 +1365,8 @@ const FiltersModule = (() => {
     const wrap = document.createElement('div');
     wrap.className = 'filter-date';
     wrap.innerHTML = `
-      <label>Desde <input type="date" id="filterDateStart" value="${dateRange.start || ''}"></label>
-      <label>Hasta <input type="date" id="filterDateEnd" value="${dateRange.end || ''}"></label>`;
+      <label title="Filtra por fecha_creacion (fecha exacta). Para el mes operativo tal como está en la hoja, usa el filtro 'Mes (MES DATA)'.">Desde (fecha creación) <input type="date" id="filterDateStart" value="${dateRange.start || ''}"></label>
+      <label title="Filtra por fecha_creacion (fecha exacta). Para el mes operativo tal como está en la hoja, usa el filtro 'Mes (MES DATA)'.">Hasta (fecha creación) <input type="date" id="filterDateEnd" value="${dateRange.end || ''}"></label>`;
     const startInput = wrap.querySelector('#filterDateStart');
     const endInput = wrap.querySelector('#filterDateEnd');
     startInput.addEventListener('change', () => { dateRange.start = startInput.value || null; onChangeCb(getActiveFilters()); });
