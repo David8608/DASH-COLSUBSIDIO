@@ -506,6 +506,36 @@ tbody tr:hover { background: var(--grey-50); }
             <span class="pag-label">—</span>
           </div>
         </div>
+
+        <div class="card card--full table-card">
+          <h3 style="padding:16px 18px 0;">Detalle de cierres con novedad</h3>
+          <p class="chart-subtitle" style="padding:0 18px;">Cantidad exacta de novedades por punto de venta, ciudad y motivo</p>
+          <div class="table-toolbar">
+            <input id="novedadSearch" type="text" placeholder="Buscar punto de venta, ciudad o motivo...">
+            <div class="table-toolbar__actions">
+              <button id="btnNovedadCSV" class="btn btn--ghost">Exportar CSV</button>
+            </div>
+          </div>
+          <div class="table-scroll">
+            <table id="novedadTable">
+              <thead>
+                <tr>
+                  <th data-sort="puntoVenta">Punto de Venta</th>
+                  <th data-sort="ciudad">Ciudad</th>
+                  <th data-sort="motivoTop">Motivo más frecuente</th>
+                  <th data-sort="cantidad">Cierres con Novedad</th>
+                  <th data-sort="pctTotal">% del Total de Novedades</th>
+                  <th data-sort="pctPunto">Tasa de Novedad del Punto</th>
+                </tr>
+              </thead>
+              <tbody id="novedadTableBody"></tbody>
+            </table>
+          </div>
+          <div class="table-footer">
+            <span id="novedadTableInfo"></span>
+            <div id="novedadPagination" class="pagination"></div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -2284,6 +2314,10 @@ const MapModule = (() => {
     els.setupBannerMsg = document.getElementById('setupBannerMsg');
     els.setupBannerTitle = document.getElementById('setupBannerTitle');
     els.setupBannerClose = document.getElementById('setupBannerClose');
+    els.novedadSearch = document.getElementById('novedadSearch');
+    els.novedadTableBody = document.getElementById('novedadTableBody');
+    els.novedadTableInfo = document.getElementById('novedadTableInfo');
+    els.novedadPagination = document.getElementById('novedadPagination');
   }
 
   let dismissedBannerKey = null;
@@ -2338,6 +2372,15 @@ const MapModule = (() => {
       if (tableState.sortKey === key) tableState.sortDir = tableState.sortDir === 'asc' ? 'desc' : 'asc';
       else { tableState.sortKey = key; tableState.sortDir = 'asc'; }
       renderTable();
+    }));
+
+    els.novedadSearch.addEventListener('input', Utils.debounce(e => { novedadTableState.search = e.target.value; novedadTableState.page = 1; renderNovedadTable(); }, 150));
+    document.getElementById('btnNovedadCSV').addEventListener('click', () => exportNovedadTable());
+    document.querySelectorAll('#novedadTable th[data-sort]').forEach(th => th.addEventListener('click', () => {
+      const key = th.dataset.sort;
+      if (novedadTableState.sortKey === key) novedadTableState.sortDir = novedadTableState.sortDir === 'asc' ? 'desc' : 'asc';
+      else { novedadTableState.sortKey = key; novedadTableState.sortDir = 'desc'; }
+      renderNovedadTable();
     }));
 
     if (els.mapMetricSelect) els.mapMetricSelect.addEventListener('change', () => renderMap());
@@ -2421,6 +2464,7 @@ const MapModule = (() => {
     safe('alertas', () => renderAlerts(filteredRows));
     safe('tabla', () => renderTable());
     safe('diagnóstico', () => renderDiagnostico());
+    safe('detalle de novedades', () => renderNovedadTable());
   }
 
   function renderDiagnostico() {
@@ -2739,6 +2783,86 @@ const MapModule = (() => {
     const headers = TABLE_COLUMNS.map(c => c.label);
     const data = rows.map(r => TABLE_COLUMNS.map(c => c.fmt(r)));
     Utils.exportExcel('dashboard_export.xls', headers, data);
+  }
+
+  /* ================= Detalle de cierres con novedad ================= */
+  let novedadTableState = { page: 1, pageSize: 50, sortKey: 'cantidad', sortDir: 'desc', search: '' };
+
+  function getNovedadAggregates() {
+    const novedadRows = filteredRows.filter(r => r.esNovedadReal);
+    const totalNovedades = novedadRows.length;
+    const groups = new Map(); // puntoVenta -> { total, cantidad, ciudadCounts:Map, motivoCounts:Map }
+    filteredRows.forEach(r => {
+      const pv = r.puntoVenta;
+      if (!pv || pv === 'Sin dato') return;
+      if (!groups.has(pv)) groups.set(pv, { total: 0, cantidad: 0, ciudadCounts: new Map(), motivoCounts: new Map() });
+      const g = groups.get(pv);
+      g.total++;
+      if (r.esNovedadReal) {
+        g.cantidad++;
+        g.ciudadCounts.set(r.ciudad, (g.ciudadCounts.get(r.ciudad) || 0) + 1);
+        g.motivoCounts.set(r.novedadDetalle, (g.motivoCounts.get(r.novedadDetalle) || 0) + 1);
+      }
+    });
+    const topOf = (map) => { let best = null, bestN = -1; map.forEach((n, k) => { if (n > bestN) { bestN = n; best = k; } }); return best || '—'; };
+
+    return Array.from(groups.entries())
+      .filter(([, g]) => g.cantidad > 0)
+      .map(([puntoVenta, g]) => ({
+        puntoVenta,
+        ciudad: topOf(g.ciudadCounts),
+        motivoTop: topOf(g.motivoCounts),
+        cantidad: g.cantidad,
+        pctTotal: totalNovedades ? (g.cantidad / totalNovedades) * 100 : 0,
+        pctPunto: g.total ? (g.cantidad / g.total) * 100 : 0
+      }));
+  }
+
+  function getNovedadTableRows() {
+    let rows = getNovedadAggregates();
+    if (novedadTableState.search) {
+      const s = Utils.normalize(novedadTableState.search);
+      rows = rows.filter(r => Utils.normalize(r.puntoVenta).includes(s) || Utils.normalize(r.ciudad).includes(s) || Utils.normalize(r.motivoTop).includes(s));
+    }
+    const key = novedadTableState.sortKey, dir = novedadTableState.sortDir === 'asc' ? 1 : -1;
+    rows = rows.slice().sort((a, b) => {
+      let av = a[key], bv = b[key];
+      if (typeof av === 'string') { av = av || ''; bv = bv || ''; return av.localeCompare(bv, 'es') * dir; }
+      return ((av ?? 0) - (bv ?? 0)) * dir;
+    });
+    return rows;
+  }
+
+  function renderNovedadTable() {
+    if (!els.novedadTableBody) return;
+    const rows = getNovedadTableRows();
+    const totalPages = Math.max(1, Math.ceil(rows.length / novedadTableState.pageSize));
+    novedadTableState.page = Math.min(novedadTableState.page, totalPages);
+    const start = (novedadTableState.page - 1) * novedadTableState.pageSize;
+    const pageRows = rows.slice(start, start + novedadTableState.pageSize);
+
+    els.novedadTableBody.innerHTML = pageRows.map(r => `<tr>
+      <td>${r.puntoVenta}</td>
+      <td>${r.ciudad}</td>
+      <td>${r.motivoTop}</td>
+      <td>${Utils.formatNumber(r.cantidad)}</td>
+      <td>${Utils.formatPct(r.pctTotal)}</td>
+      <td>${Utils.formatPct(r.pctPunto)}</td>
+    </tr>`).join('') || `<tr><td colspan="6" class="empty-state">Sin cierres con novedad para los filtros seleccionados.</td></tr>`;
+
+    els.novedadTableInfo.textContent = `${Utils.formatNumber(rows.length)} puntos con novedad — página ${novedadTableState.page} de ${totalPages}`;
+    els.novedadPagination.innerHTML = `
+      <button ${novedadTableState.page <= 1 ? 'disabled' : ''} data-p="prev">‹ Anterior</button>
+      <button ${novedadTableState.page >= totalPages ? 'disabled' : ''} data-p="next">Siguiente ›</button>`;
+    els.novedadPagination.querySelector('[data-p="prev"]').addEventListener('click', () => { novedadTableState.page--; renderNovedadTable(); });
+    els.novedadPagination.querySelector('[data-p="next"]').addEventListener('click', () => { novedadTableState.page++; renderNovedadTable(); });
+  }
+
+  function exportNovedadTable() {
+    const rows = getNovedadTableRows();
+    const headers = ['Punto de Venta', 'Ciudad', 'Motivo más frecuente', 'Cierres con Novedad', '% del Total de Novedades', 'Tasa de Novedad del Punto'];
+    const data = rows.map(r => [r.puntoVenta, r.ciudad, r.motivoTop, r.cantidad, r.pctTotal.toFixed(1) + '%', r.pctPunto.toFixed(1) + '%']);
+    Utils.exportCSV('detalle_novedades.csv', headers, data);
   }
 
   function flashToast(msg) {
