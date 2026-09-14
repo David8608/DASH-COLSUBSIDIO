@@ -598,6 +598,7 @@ tbody tr:hover { background: var(--grey-50); }
                 <th data-sort="canal">Canal</th>
                 <th data-sort="tipoServicio">Tipo Servicio</th>
                 <th data-sort="estado">Estado</th>
+                <th data-sort="novedadDetalle">Motivo Novedad</th>
                 <th data-sort="tiempoCreacion">T. Creación</th>
                 <th data-sort="tiempoAceptacion">T. Entrega</th>
                 <th data-sort="dentroSla">SLA</th>
@@ -1020,6 +1021,7 @@ const DataLayer = (() => {
     CLIENTE: ['cliente', 'CLIENTE'],
     COORDINADOR: ['COORDINADOR', 'COORDINADOR OPERATIVO', 'COORDINADOR OPERACIONES'],
     ESTADO: ['estado', 'ESTADO', 'ESTADO SERVICIO', 'RESULTADO'],
+    NOVEDAD_DETALLE: ['novedad_final', 'NOVEDAD FINAL', 'novedad_1', 'NOVEDAD', 'MOTIVO NOVEDAD'],
     PUNTO_VENTA: ['especialidad', 'ESPECIALIDAD', 'PUNTO DE VENTA', 'PUNTO VENTA'],
     VALOR: ['VALOR SERVICIO', 'VALOR', 'TICKET'],
     CIUDAD: ['CIUDAD 2', 'CIUDAD'],
@@ -1190,6 +1192,12 @@ const DataLayer = (() => {
       const cenLogY = map.CENLOG_Y ? String(row[map.CENLOG_Y] || '').trim() : '';
       const cenLog = [cenLogZ, cenLogY].filter(Boolean).join(' - ') || 'Sin dato';
 
+      const novedadDetalleRaw = map.NOVEDAD_DETALLE ? String(row[map.NOVEDAD_DETALLE] || '').trim() : '';
+      const novedadDetalle = novedadDetalleRaw || 'Sin dato';
+      const esNovedadReal = map.NOVEDAD_DETALLE
+        ? (estadoInfo.estado === 'NOVEDAD' && !!novedadDetalleRaw && !NOVEDAD_VACIA.test(Utils.normalize(novedadDetalleRaw)))
+        : estadoInfo.esNovedadReal;
+
       if (ciudad === 'Sin dato' && !fecha && estadoInfo.estado === 'SIN_DATO') continue; // descarta filas totalmente vacías
 
       out.push({
@@ -1211,7 +1219,8 @@ const DataLayer = (() => {
         coordinador: map.COORDINADOR ? (row[map.COORDINADOR] || 'Sin dato').trim() : 'Sin dato',
         estado: estadoInfo.estado,
         estadoRaw: estadoRaw || '',
-        esNovedadReal: estadoInfo.esNovedadReal,
+        novedadDetalle,
+        esNovedadReal,
         tiempoCreacion: tCreacion,
         tiempoAceptacion: tAceptacion,
         dentroSla: (tAceptacion !== null && tAceptacion !== undefined) ? (tAceptacion <= CONFIG.SLA_META_DEFAULT) : null,
@@ -1263,6 +1272,8 @@ const DataLayer = (() => {
 
   /* ---------- Carga completa ---------- */
   async function loadAll() {
+    state.diagnostics.estadoCounts = {};
+    state.diagnostics.tiempoDescartados = 0;
     await autoDetectGids();
     const [h1, h2, h3, pc] = await Promise.all([
       fetchSheetCSV(state.gids.hoja1).catch(() => ({ data: [] })),
@@ -1336,7 +1347,7 @@ const FiltersModule = (() => {
     { key: 'ciudad', label: 'Ciudad', accessor: r => r.ciudad },
     { key: 'municipio', label: 'Municipio', accessor: r => r.municipio },
     { key: 'puntoVenta', label: 'Punto de Venta', accessor: r => r.puntoVenta },
-    { key: 'novedadTipo', label: 'Tipo de Novedad', accessor: r => r.esNovedadReal ? r.estadoRaw : null }
+    { key: 'novedadTipo', label: 'Tipo de Novedad', accessor: r => r.esNovedadReal ? r.novedadDetalle : null }
   ];
 
   let dateRange = { start: null, end: null }; // yyyy-mm-dd strings
@@ -2569,12 +2580,12 @@ const MapModule = (() => {
     ChartsModule.renderRateBarH('chartEfectividadCiudad', rows, r => r.ciudad, r => r.estado === 'EFECTIVO', 15, '#16A34A', 3);
     ChartsModule.renderDoughnut('chartTipoServicioTorta', rows, r => r.tipoServicio, 10);
     ChartsModule.renderRateBarH('chartTipoServicioEfectividad', rows, r => r.tipoServicio, r => r.estado === 'EFECTIVO', 10, '#16A34A', 3);
-    ChartsModule.renderDoughnut('chartNovedadTorta', rows.filter(r => r.esNovedadReal), r => r.estadoRaw, 10);
+    ChartsModule.renderDoughnut('chartNovedadTorta', rows.filter(r => r.esNovedadReal), r => r.novedadDetalle, 10);
     ChartsModule.renderTopBarV('chartNovedadCiudad', rows.filter(r => r.esNovedadReal), r => r.ciudad, 15, '#F59E0B');
     ChartsModule.renderPaginatedSingle('chartPuntoVentaVolumen', 'pagPuntoVentaVolumen', rows, r => r.puntoVenta, { label: 'Servicios', color: '#2563EB', pageSize: 12 });
     ChartsModule.renderPaginatedSingle('chartPuntoVentaEfectividad', 'pagPuntoVentaEfectividad', rows, r => r.puntoVenta, { label: '% Efectividad', color: '#16A34A', indexAxis: 'y', isRate: true, predicateFn: r => r.estado === 'EFECTIVO', minSample: 3, pageSize: 12 });
     ChartsModule.renderPaginatedGrouped('chartNovedadPuntoVenta', 'pagNovedadPuntoVenta', rows, r => r.puntoVenta,
-      [{ label: 'Total', color: '#93C5FD' }, { label: 'Con Novedad', color: '#DC2626', predicateFn: r => r.estado === 'NOVEDAD' }], 12);
+      [{ label: 'Total', color: '#93C5FD' }, { label: 'Con Novedad', color: '#DC2626', predicateFn: r => r.esNovedadReal }], 12);
 
     // Operación
     ChartsModule.renderTopBar('chartByCity', rows, r => r.ciudad, 15, '#2563EB');
@@ -2673,6 +2684,7 @@ const MapModule = (() => {
     { key: 'canal', label: 'Canal', fmt: r => r.canal },
     { key: 'tipoServicio', label: 'Tipo Servicio', fmt: r => r.tipoServicio },
     { key: 'estado', label: 'Estado', fmt: r => r.estado },
+    { key: 'novedadDetalle', label: 'Motivo Novedad', fmt: r => r.esNovedadReal ? r.novedadDetalle : '—' },
     { key: 'tiempoCreacion', label: 'T. Creación', fmt: r => Utils.minutesToHHMM(r.tiempoCreacion) },
     { key: 'tiempoAceptacion', label: 'T. Entrega', fmt: r => Utils.minutesToHHMM(r.tiempoAceptacion) },
     { key: 'dentroSla', label: 'SLA', fmt: r => r.dentroSla === null ? '—' : (r.dentroSla ? 'Dentro' : 'Fuera') },
