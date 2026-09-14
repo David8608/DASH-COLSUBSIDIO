@@ -247,6 +247,32 @@ body.sidebar-collapsed .nav-item { justify-content: center; }
 .kpi-var--good { color: var(--green-600); }
 .kpi-var--bad { color: var(--red-600); }
 
+/* ================= RESUMEN NOVEDADES / HALLAZGOS (Inicio) ================= */
+.summary-block { display: flex; flex-direction: column; gap: 14px; }
+.summary-big { font-family: var(--font-mono); font-size: 30px; font-weight: 700; color: var(--grey-900); }
+.summary-big span { display: block; font-family: var(--font-ui); font-size: 12px; font-weight: 600; color: var(--grey-500); margin-top: 2px; }
+.summary-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.summary-col-title { font-size: 11.5px; font-weight: 700; color: var(--grey-500); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px; }
+.summary-row { display: flex; justify-content: space-between; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--grey-100); font-size: 12.5px; color: var(--grey-700); }
+.summary-row b { font-family: var(--font-mono); color: var(--grey-900); }
+.summary-empty { font-size: 12px; color: var(--grey-500); }
+
+.findings-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.findings-list li {
+  font-size: 13px; color: var(--grey-700); line-height: 1.5; padding: 8px 10px;
+  background: var(--grey-50); border-radius: var(--radius-sm); border-left: 3px solid var(--blue-500);
+}
+.findings-list li b { color: var(--grey-900); }
+
+/* ================= SLA: estadísticas generales ================= */
+.sla-stats { display: flex; flex-direction: column; gap: 2px; }
+.sla-stat-row {
+  display: flex; justify-content: space-between; align-items: baseline; padding: 10px 4px; border-bottom: 1px solid var(--grey-100);
+  font-size: 13px; color: var(--grey-700);
+}
+.sla-stat-row:last-child { border-bottom: none; }
+.sla-stat-row b { font-family: var(--font-mono); font-size: 16px; color: var(--grey-900); }
+
 /* ================= CARDS / CHARTS ================= */
 .chart-grid { display: grid; gap: 16px; margin-bottom: 20px; }
 .chart-grid--2 { grid-template-columns: repeat(2, 1fr); }
@@ -449,16 +475,30 @@ tbody tr:hover { background: var(--grey-50); }
     <!-- ---------- INICIO ---------- -->
     <section id="section-inicio" class="section active">
       <h1 class="section-title">Inicio</h1>
+      <p class="chart-subtitle" style="margin-bottom:14px;">Resumen ejecutivo — cómo está la operación en general</p>
       <div id="kpiGrid" class="kpi-grid"></div>
+
       <div class="chart-grid chart-grid--2">
-        <div class="card"><h3>Servicios por mes</h3><div class="chart-box"><canvas id="chartByMonth"></canvas></div></div>
-        <div class="card"><h3>Servicios por día</h3><div class="chart-box"><canvas id="chartByDay"></canvas></div></div>
+        <div class="card"><h3>Volumen por ciudad</h3><div class="chart-box"><canvas id="chartInicioVolumenCiudad"></canvas></div></div>
+        <div class="card"><h3>Efectividad por ciudad</h3><div class="chart-box"><canvas id="chartInicioEfectividadCiudad"></canvas></div></div>
+      </div>
+
+      <div class="chart-grid chart-grid--2">
+        <div class="card">
+          <h3>Resumen de novedades</h3>
+          <div id="inicioNovedadResumen" class="summary-block"></div>
+        </div>
+        <div class="card">
+          <h3>Principales hallazgos</h3>
+          <ul id="inicioHallazgos" class="findings-list"></ul>
+        </div>
       </div>
     </section>
 
     <!-- ---------- INDICADORES ---------- -->
     <section id="section-indicadores" class="section">
       <h1 class="section-title">Indicadores</h1>
+      <p class="chart-subtitle" style="margin-bottom:14px;">¿Qué resultados estamos obteniendo? — volumen, efectividad, novedades, tipo de servicio y puntos de venta</p>
       <div id="kpiGridIndicadores" class="kpi-grid"></div>
 
       <div class="chart-grid chart-grid--2">
@@ -537,33 +577,59 @@ tbody tr:hover { background: var(--grey-50); }
           </div>
         </div>
       </div>
+
+      <h1 class="section-title" style="font-size:16px;margin:26px 0 4px;">Tendencia mensual</h1>
+      <p class="chart-subtitle" style="margin-bottom:14px;">% Cumplimiento, % Novedades y % Cancelaciones mes a mes</p>
+      <div class="chart-grid chart-grid--2">
+        <div class="card"><h3>% Cumplimiento por mes</h3><div class="chart-box"><canvas id="chartCumplimiento"></canvas></div></div>
+        <div class="card"><h3>% Novedades por mes</h3><div class="chart-box"><canvas id="chartNovedades"></canvas></div></div>
+        <div class="card card--full"><h3>% Cancelaciones por mes</h3><div class="chart-box"><canvas id="chartCancelaciones"></canvas></div></div>
+      </div>
     </section>
 
     <!-- ---------- OPERACIÓN ---------- -->
     <section id="section-operacion" class="section">
       <h1 class="section-title">Operación</h1>
+      <p class="chart-subtitle" style="margin-bottom:14px;">¿Dónde y cómo se está ejecutando la operación? — ciudad, canal, CenLog, tipo de servicio y punto de venta</p>
       <div class="chart-grid chart-grid--2">
-        <div class="card"><h3>Servicios por tipo de canal</h3><div class="chart-box"><canvas id="chartByChannelType"></canvas></div></div>
-        <div class="card"><h3>Servicios por ciudad</h3><div class="chart-box"><canvas id="chartByCity"></canvas></div></div>
-        <div class="card"><h3>Servicios por municipio</h3><div class="chart-box"><canvas id="chartByMunicipality"></canvas></div></div>
-        <div class="card"><h3>Servicios por hora</h3><div class="chart-box"><canvas id="chartByHour"></canvas></div></div>
-        <div class="card"><h3>% Cancelaciones por mes</h3><div class="chart-box"><canvas id="chartCancelaciones"></canvas></div></div>
-        <div class="card"><h3>% Novedades por mes</h3><div class="chart-box"><canvas id="chartNovedades"></canvas></div></div>
-        <div class="card card--full"><h3>% Cumplimiento por mes</h3><div class="chart-box"><canvas id="chartCumplimiento"></canvas></div></div>
+        <div class="card"><h3>Distribución por Ciudad</h3><div class="chart-box"><canvas id="chartByCity"></canvas></div></div>
+        <div class="card"><h3>Distribución por Canal</h3><p class="chart-subtitle">Por Tipo Canal — no se encontró una columna "Canal" independiente en la hoja</p><div class="chart-box"><canvas id="chartByChannelType"></canvas></div></div>
+
+        <div class="card"><h3>Distribución por CenLog</h3><div class="chart-box"><canvas id="chartOperacionCenLog"></canvas></div></div>
+        <div class="card"><h3>Distribución por Tipo de Servicio</h3><div class="chart-box"><canvas id="chartOperacionTipoServicio"></canvas></div></div>
+
+        <div class="card card--full"><h3>Distribución por Punto de Venta</h3><div class="chart-box"><canvas id="chartOperacionPuntoVenta"></canvas></div></div>
+
+        <div class="card"><h3>Distribución por municipio</h3><div class="chart-box"><canvas id="chartByMunicipality"></canvas></div></div>
+        <div class="card"><h3>Distribución por hora</h3><div class="chart-box"><canvas id="chartByHour"></canvas></div></div>
+        <div class="card"><h3>Distribución por mes</h3><div class="chart-box"><canvas id="chartByMonth"></canvas></div></div>
+        <div class="card"><h3>Distribución por día</h3><div class="chart-box"><canvas id="chartByDay"></canvas></div></div>
       </div>
     </section>
 
     <!-- ---------- SLA / TIEMPOS ---------- -->
     <section id="section-sla" class="section">
-      <h1 class="section-title">Tiempos (columnas AM / AN)</h1>
-      <div class="chart-grid chart-grid--2">
-        <div class="card"><h3>Tiempo promedio por mes — Creación / Alistamiento</h3><div class="chart-box"><canvas id="chartTiempoCreacionMes"></canvas></div></div>
-        <div class="card"><h3>Tiempo promedio por mes — Aceptación / Entrega</h3><div class="chart-box"><canvas id="chartTiempoAceptacionMes"></canvas></div></div>
+      <h1 class="section-title">SLA</h1>
+      <p class="chart-subtitle" style="margin-bottom:14px;">¿Qué está pasando con los tiempos? — alistamiento, entrega, ciudades, tipos de servicio y tendencias</p>
 
+      <div class="chart-grid chart-grid--2">
+        <div class="card">
+          <h3>Alistamiento (creación → aceptación)</h3>
+          <div id="slaStatsAlistamiento" class="sla-stats"></div>
+        </div>
+        <div class="card">
+          <h3>Entrega (aceptación → finalización)</h3>
+          <div id="slaStatsEntrega" class="sla-stats"></div>
+        </div>
+      </div>
+
+      <div class="chart-grid chart-grid--2">
         <div class="card"><h3>Tiempo por ciudad — Alistamiento (mayor a menor)</h3><div class="chart-box"><canvas id="chartTiempoCreacionCiudad"></canvas></div></div>
         <div class="card"><h3>Tiempo por ciudad — Entrega (mayor a menor)</h3><div class="chart-box"><canvas id="chartTiempoAceptacionCiudad"></canvas></div></div>
 
-        <div class="card card--full"><h3>Tiempos por tipo de servicio</h3><div class="chart-box"><canvas id="chartTiempoTipoServicio"></canvas></div></div>
+        <div class="card card--full"><h3>Tiempos por tipo de servicio</h3><p class="chart-subtitle">Comparación: alistamiento vs. entrega</p><div class="chart-box"><canvas id="chartTiempoTipoServicio"></canvas></div></div>
+
+        <div class="card card--full"><h3>Tendencia temporal</h3><p class="chart-subtitle">Alistamiento vs. entrega, mes a mes — ¿está mejorando o empeorando?</p><div class="chart-box"><canvas id="chartTiempoTendenciaMensual"></canvas></div></div>
 
         <div class="card"><h3>Dentro vs Fuera de SLA (tiempo de entrega)</h3><div class="chart-box"><canvas id="chartSlaGauge"></canvas></div></div>
         <div class="card"><h3>Distribución por rangos de tiempo</h3><div class="chart-box"><canvas id="chartSlaDist"></canvas></div></div>
@@ -625,6 +691,7 @@ tbody tr:hover { background: var(--grey-50); }
                 <th data-sort="puntoVenta">Punto de Venta</th>
                 <th data-sort="cenLog">CenLog</th>
                 <th data-sort="cliente">Cliente</th>
+                <th data-sort="documentoUsuario">Documento</th>
                 <th data-sort="canal">Canal</th>
                 <th data-sort="tipoServicio">Tipo Servicio</th>
                 <th data-sort="estado">Estado</th>
@@ -1049,6 +1116,7 @@ const DataLayer = (() => {
     MUNICIPIO: ['ciudad', 'MUNICIPIO'], // "ciudad" (minúscula, cruda) es más granular que "CIUDAD 2"
     FARMACIA: ['FARMACIA', 'PUNTO', 'SEDE', 'DROGUERIA'],
     CLIENTE: ['cliente', 'CLIENTE'],
+    DOCUMENTO_USUARIO: ['codigo_cliente', 'CODIGO CLIENTE', 'DOCUMENTO', 'CEDULA', 'NUMERO DOCUMENTO', 'IDENTIFICACION'],
     COORDINADOR: ['COORDINADOR', 'COORDINADOR OPERATIVO', 'COORDINADOR OPERACIONES'],
     ESTADO: ['estado', 'ESTADO', 'ESTADO SERVICIO', 'RESULTADO'],
     NOVEDAD_FINAL: ['novedad_final', 'NOVEDAD FINAL'],
@@ -1255,6 +1323,7 @@ const DataLayer = (() => {
         farmacia: map.FARMACIA ? (row[map.FARMACIA] || 'Sin dato').trim() : 'Sin dato',
         puntoVenta: map.PUNTO_VENTA ? (row[map.PUNTO_VENTA] || 'Sin dato').toString().trim() : 'Sin dato',
         cliente: map.CLIENTE ? (row[map.CLIENTE] || 'Sin dato').trim() : 'Sin dato',
+        documentoUsuario: map.DOCUMENTO_USUARIO ? String(row[map.DOCUMENTO_USUARIO] || 'Sin dato').trim() : 'Sin dato',
         coordinador: map.COORDINADOR ? (row[map.COORDINADOR] || 'Sin dato').trim() : 'Sin dato',
         estado: estadoInfo.estado,
         estadoRaw: estadoRaw || '',
@@ -1899,6 +1968,34 @@ const ChartsModule = (() => {
     }, { plugins: { legend: { display: true } } });
   }
 
+  /* ---------- Tiempos: tendencia mensual combinada (alistamiento vs entrega en una sola gráfica) ---------- */
+  function renderTiempoTendenciaMensual(id, rows) {
+    const mapC = new Map(), mapA = new Map();
+    rows.forEach(r => {
+      if (!r.mes) return;
+      if (r.tiempoCreacion !== null && r.tiempoCreacion !== undefined) { const arr = mapC.get(r.mes) || []; arr.push(r.tiempoCreacion); mapC.set(r.mes, arr); }
+      if (r.tiempoAceptacion !== null && r.tiempoAceptacion !== undefined) { const arr = mapA.get(r.mes) || []; arr.push(r.tiempoAceptacion); mapA.set(r.mes, arr); }
+    });
+    const labels = [], valuesC = [], valuesA = [];
+    for (let m = 1; m <= 12; m++) {
+      if (mapC.has(m) || mapA.has(m)) {
+        labels.push(Utils.MESES_ABR[m - 1]);
+        const arrC = mapC.get(m); valuesC.push(arrC && arrC.length ? Number((arrC.reduce((a, b) => a + b, 0) / arrC.length).toFixed(1)) : null);
+        const arrA = mapA.get(m); valuesA.push(arrA && arrA.length ? Number((arrA.reduce((a, b) => a + b, 0) / arrA.length).toFixed(1)) : null);
+      }
+    }
+    upsert(id, 'line', {
+      labels,
+      datasets: [
+        { label: 'Alistamiento', data: valuesC, borderColor: '#2563EB', backgroundColor: '#2563EB22', fill: false, tension: .3, pointRadius: 3 },
+        { label: 'Entrega', data: valuesA, borderColor: '#16A34A', backgroundColor: '#16A34A22', fill: false, tension: .3, pointRadius: 3 }
+      ]
+    }, {
+      plugins: { legend: { display: true }, tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${Utils.minutesToHHMM(ctx.parsed.y)}` } } },
+      scales: { y: { ticks: { callback: v => Utils.minutesToHHMM(v) } } }
+    });
+  }
+
   /* ---------- Genérico: doughnut ---------- */
   function renderDoughnut(id, rows, keyFn, n = 8) {
     const map = groupCount(rows, keyFn);
@@ -2026,7 +2123,7 @@ const ChartsModule = (() => {
   return {
     renderByMonth, renderByDay, renderByHour, renderTopBar, renderTopBarV, renderDoughnut, renderRateByMonth,
     renderRateBarH, renderPaginatedSingle, renderPaginatedGrouped,
-    renderAvgTimeByMonth, renderAvgTimeTopBar, renderAvgTimeGrouped,
+    renderAvgTimeByMonth, renderAvgTimeTopBar, renderAvgTimeGrouped, renderTiempoTendenciaMensual,
     renderSlaDistribution, renderSlaGauge,
     renderPercapitaMonthly, renderPercapitaByCity, renderPercapitaByFarmacia, renderPercapitaVsServicios,
     groupCount, topN, destroyAll, registry
@@ -2468,6 +2565,9 @@ const MapModule = (() => {
 
     safe('KPIs', () => renderKPIs(filteredRows));
     safe('KPIs Indicadores', () => renderKPIsIndicadores(filteredRows));
+    safe('resumen novedades Inicio', () => renderInicioResumenNovedades(filteredRows));
+    safe('hallazgos Inicio', () => renderInicioHallazgos(filteredRows));
+    safe('estadísticas SLA', () => renderSlaStats(filteredRows));
     safe('gráficos', () => renderCharts(filteredRows, pcRows));
     safe('mapa', () => renderMap());
     safe('alertas', () => renderAlerts(filteredRows));
@@ -2591,15 +2691,10 @@ const MapModule = (() => {
 
     const cards = [
       kpiCard('Total Servicios', Utils.formatNumber(cur.total), v('total'), true, null, '📦'),
-      kpiCard('Servicios Efectivos', Utils.formatNumber(cur.efectivos), v('efectivos'), true, null, '✅'),
-      kpiCard('Cumplimiento', Utils.formatPct(cur.cumplimiento), v('cumplimiento'), true, Utils.semaforo(cur.cumplimiento, KPI_THRESHOLDS.cumplimiento), '🎯'),
-      kpiCard('Cancelaciones', Utils.formatNumber(cur.cancelados) + ` (${Utils.formatPct(cur.cancelacionesPct)})`, v('cancelacionesPct'), false, null, '🚫'),
-      kpiCard('Novedades', Utils.formatNumber(cur.novedades) + ` (${Utils.formatPct(cur.novedadesPct)})`, v('novedadesPct'), false, null, '⚠️'),
-      kpiCard('Tiempo Creación', Utils.minutesToHHMM(cur.tiempoCreacionProm), v('tiempoCreacionProm'), false, null, '🕐'),
-      kpiCard('Tiempo Entrega', Utils.minutesToHHMM(cur.tiempoAceptacionProm), v('tiempoAceptacionProm'), false, null, '⏱'),
-      kpiCard('Cobertura', Utils.formatNumber(cur.municipios) + ' municipios', null, true, null, '🌎'),
-      kpiCard('Ciudades', Utils.formatNumber(cur.ciudades), null, true, null, '🏙'),
-      kpiCard('Municipios', Utils.formatNumber(cur.municipios), null, true, null, '📍')
+      kpiCard('% Entregados', Utils.formatPct(cur.entregadosPct), v('entregadosPct'), true, Utils.semaforo(cur.entregadosPct, KPI_THRESHOLDS.cumplimiento), '✅'),
+      kpiCard('% Cerrados con Novedad', Utils.formatPct(cur.novedadesPct), v('novedadesPct'), false, null, '⚠️'),
+      kpiCard('Tiempo Prom. Alistamiento', Utils.minutesToHHMM(cur.tiempoCreacionProm), v('tiempoCreacionProm'), false, null, '🕐'),
+      kpiCard('Tiempo Prom. Entrega', Utils.minutesToHHMM(cur.tiempoAceptacionProm), v('tiempoAceptacionProm'), false, null, '⏱')
     ];
     els.kpiGrid.innerHTML = cards.join('');
   }
@@ -2622,13 +2717,119 @@ const MapModule = (() => {
     els.kpiGridIndicadores.innerHTML = cards.join('');
   }
 
+  /* ================= Resumen ejecutivo (Inicio) ================= */
+  function timeStats(rows, field) {
+    const vals = rows.map(r => r[field]).filter(v => v !== null && v !== undefined);
+    if (!vals.length) return { avg: null, min: null, max: null };
+    return {
+      avg: vals.reduce((a, b) => a + b, 0) / vals.length,
+      min: Math.min(...vals),
+      max: Math.max(...vals)
+    };
+  }
+
+  function renderInicioResumenNovedades(rows) {
+    const box = document.getElementById('inicioNovedadResumen');
+    if (!box) return;
+    const total = rows.length;
+    const novedadRows = rows.filter(r => r.esNovedadReal);
+    const pct = total ? (novedadRows.length / total) * 100 : null;
+
+    const motivoMap = new Map();
+    novedadRows.forEach(r => motivoMap.set(r.novedadDetalle, (motivoMap.get(r.novedadDetalle) || 0) + 1));
+    const topMotivos = Array.from(motivoMap.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3);
+
+    const ciudadMap = new Map();
+    novedadRows.forEach(r => ciudadMap.set(r.ciudad, (ciudadMap.get(r.ciudad) || 0) + 1));
+    const topCiudades = Array.from(ciudadMap.entries()).sort((a, b) => b[1] - a[1]).slice(0, 3);
+
+    box.innerHTML = `
+      <div class="summary-big">${pct !== null ? Utils.formatPct(pct) : '—'} <span>de servicios con novedad</span></div>
+      <div class="summary-cols">
+        <div>
+          <div class="summary-col-title">Principales novedades</div>
+          ${topMotivos.length ? topMotivos.map(([k, v]) => `<div class="summary-row"><span>${k}</span><b>${Utils.formatNumber(v)}</b></div>`).join('') : '<div class="summary-empty">Sin novedades registradas</div>'}
+        </div>
+        <div>
+          <div class="summary-col-title">Ciudades con más novedades</div>
+          ${topCiudades.length ? topCiudades.map(([k, v]) => `<div class="summary-row"><span>${k}</span><b>${Utils.formatNumber(v)}</b></div>`).join('') : '<div class="summary-empty">Sin novedades registradas</div>'}
+        </div>
+      </div>`;
+  }
+
+  function renderInicioHallazgos(rows) {
+    const list = document.getElementById('inicioHallazgos');
+    if (!list) return;
+    if (!rows.length) { list.innerHTML = '<li class="empty-state">Sin datos para los filtros seleccionados.</li>'; return; }
+
+    const byCiudad = new Map(), efByCiudad = new Map(), novedadByCiudad = new Map();
+    const byTipoServicio = new Map();
+    const tCreacionByCiudad = new Map(), tAceptacionByCiudad = new Map();
+    const novedadMotivo = new Map();
+
+    rows.forEach(r => {
+      if (r.ciudad && r.ciudad !== 'Sin dato') {
+        byCiudad.set(r.ciudad, (byCiudad.get(r.ciudad) || 0) + 1);
+        if (!efByCiudad.has(r.ciudad)) efByCiudad.set(r.ciudad, { total: 0, ef: 0 });
+        const ec = efByCiudad.get(r.ciudad); ec.total++; if (r.estado === 'EFECTIVO') ec.ef++;
+        if (r.esNovedadReal) novedadByCiudad.set(r.ciudad, (novedadByCiudad.get(r.ciudad) || 0) + 1);
+        if (r.tiempoCreacion !== null && r.tiempoCreacion !== undefined) { const a = tCreacionByCiudad.get(r.ciudad) || []; a.push(r.tiempoCreacion); tCreacionByCiudad.set(r.ciudad, a); }
+        if (r.tiempoAceptacion !== null && r.tiempoAceptacion !== undefined) { const a = tAceptacionByCiudad.get(r.ciudad) || []; a.push(r.tiempoAceptacion); tAceptacionByCiudad.set(r.ciudad, a); }
+      }
+      if (r.tipoServicio && r.tipoServicio !== 'Sin dato') byTipoServicio.set(r.tipoServicio, (byTipoServicio.get(r.tipoServicio) || 0) + 1);
+      if (r.esNovedadReal) novedadMotivo.set(r.novedadDetalle, (novedadMotivo.get(r.novedadDetalle) || 0) + 1);
+    });
+
+    const topBy = (map) => Array.from(map.entries()).sort((a, b) => b[1] - a[1])[0];
+    const avgOf = (arr) => arr.reduce((a, b) => a + b, 0) / arr.length;
+
+    const findings = [];
+    const mVol = topBy(byCiudad);
+    if (mVol) findings.push(`<b>${mVol[0]}</b> es la ciudad con mayor volumen (${Utils.formatNumber(mVol[1])} servicios).`);
+
+    let peorCiudad = null, peorPct = 101;
+    efByCiudad.forEach((v, k) => { if (v.total >= 3) { const pct = (v.ef / v.total) * 100; if (pct < peorPct) { peorPct = pct; peorCiudad = k; } } });
+    if (peorCiudad) findings.push(`<b>${peorCiudad}</b> tiene la menor efectividad (${Utils.formatPct(peorPct)}).`);
+
+    const mNov = topBy(novedadByCiudad);
+    if (mNov) findings.push(`<b>${mNov[0]}</b> concentra la mayor cantidad de novedades (${Utils.formatNumber(mNov[1])}).`);
+
+    const mTipo = topBy(byTipoServicio);
+    if (mTipo) findings.push(`<b>${mTipo[0]}</b> es el tipo de servicio con mayor volumen (${Utils.formatNumber(mTipo[1])} servicios).`);
+
+    const mMotivo = topBy(novedadMotivo);
+    if (mMotivo) findings.push(`La novedad más frecuente es <b>${mMotivo[0]}</b> (${Utils.formatNumber(mMotivo[1])} casos).`);
+
+    let peorTiempoEntrega = null, peorTE = -1;
+    tAceptacionByCiudad.forEach((arr, k) => { const avg = avgOf(arr); if (avg > peorTE) { peorTE = avg; peorTiempoEntrega = k; } });
+    if (peorTiempoEntrega) findings.push(`<b>${peorTiempoEntrega}</b> tiene el mayor tiempo promedio de entrega (${Utils.minutesToHHMM(peorTE)}).`);
+
+    let peorTiempoAlist = null, peorTA = -1;
+    tCreacionByCiudad.forEach((arr, k) => { const avg = avgOf(arr); if (avg > peorTA) { peorTA = avg; peorTiempoAlist = k; } });
+    if (peorTiempoAlist) findings.push(`<b>${peorTiempoAlist}</b> tiene el mayor tiempo promedio de alistamiento (${Utils.minutesToHHMM(peorTA)}).`);
+
+    list.innerHTML = findings.length ? findings.map(f => `<li>${f}</li>`).join('') : '<li class="empty-state">Sin hallazgos disponibles.</li>';
+  }
+
+  /* ================= SLA: estadísticas generales de tiempo ================= */
+  function renderSlaStats(rows) {
+    const alist = document.getElementById('slaStatsAlistamiento');
+    const entrega = document.getElementById('slaStatsEntrega');
+    if (!alist || !entrega) return;
+    const sc = timeStats(rows, 'tiempoCreacion');
+    const sa = timeStats(rows, 'tiempoAceptacion');
+    const row = (label, v) => `<div class="sla-stat-row"><span>${label}</span><b>${v === null ? '—' : Utils.minutesToHHMM(v)}</b></div>`;
+    alist.innerHTML = row('Promedio', sc.avg) + row('Mínimo', sc.min) + row('Máximo', sc.max);
+    entrega.innerHTML = row('Promedio', sa.avg) + row('Mínimo', sa.min) + row('Máximo', sa.max);
+  }
+
   /* ================= Gráficos ================= */
   function renderCharts(rows, pcRows) {
-    // Inicio
-    ChartsModule.renderByMonth(rows);
-    ChartsModule.renderByDay(rows);
+    // Inicio — resumen condensado
+    ChartsModule.renderTopBar('chartInicioVolumenCiudad', rows, r => r.ciudad, 8, '#2563EB');
+    ChartsModule.renderRateBarH('chartInicioEfectividadCiudad', rows, r => r.ciudad, r => r.estado === 'EFECTIVO', 8, '#16A34A', 3);
 
-    // Indicadores
+    // Indicadores — resultados
     ChartsModule.renderTopBar('chartTopCiudadesVolumen', rows, r => r.ciudad, 15, '#2563EB');
     ChartsModule.renderRateBarH('chartEfectividadCiudad', rows, r => r.ciudad, r => r.estado === 'EFECTIVO', 15, '#16A34A', 3);
     ChartsModule.renderDoughnut('chartTipoServicioTorta', rows, r => r.tipoServicio, 10);
@@ -2639,22 +2840,26 @@ const MapModule = (() => {
     ChartsModule.renderPaginatedSingle('chartPuntoVentaEfectividad', 'pagPuntoVentaEfectividad', rows, r => r.puntoVenta, { label: '% Efectividad', color: '#16A34A', indexAxis: 'y', isRate: true, predicateFn: r => r.estado === 'EFECTIVO', minSample: 3, pageSize: 12 });
     ChartsModule.renderPaginatedGrouped('chartNovedadPuntoVenta', 'pagNovedadPuntoVenta', rows, r => r.puntoVenta,
       [{ label: 'Total', color: '#93C5FD' }, { label: 'Con Novedad', color: '#DC2626', predicateFn: r => r.esNovedadReal }], 12);
+    ChartsModule.renderRateByMonth('chartCumplimiento', rows, r => r.estado === 'EFECTIVO', '#16A34A');
+    ChartsModule.renderRateByMonth('chartNovedades', rows, r => r.esNovedadReal, '#F59E0B');
+    ChartsModule.renderRateByMonth('chartCancelaciones', rows, r => r.estado === 'CANCELADO', '#DC2626');
 
-    // Operación
+    // Operación — distribución operacional (dónde y cómo)
     ChartsModule.renderTopBar('chartByCity', rows, r => r.ciudad, 15, '#2563EB');
+    ChartsModule.renderDoughnut('chartByChannelType', rows, r => r.tipoCanal);
+    ChartsModule.renderTopBar('chartOperacionCenLog', rows, r => r.cenLog, 15, '#8B5CF6');
+    ChartsModule.renderTopBar('chartOperacionTipoServicio', rows, r => r.tipoServicio, 12, '#0EA5E9');
+    ChartsModule.renderTopBar('chartOperacionPuntoVenta', rows, r => r.puntoVenta, 15, '#2563EB');
     ChartsModule.renderTopBar('chartByMunicipality', rows, r => r.municipio, 15, '#0EA5E9');
     ChartsModule.renderByHour(rows);
-    ChartsModule.renderDoughnut('chartByChannelType', rows, r => r.tipoCanal);
-    ChartsModule.renderRateByMonth('chartCancelaciones', rows, r => r.estado === 'CANCELADO', '#DC2626');
-    ChartsModule.renderRateByMonth('chartNovedades', rows, r => r.estado === 'NOVEDAD', '#F59E0B');
-    ChartsModule.renderRateByMonth('chartCumplimiento', rows, r => r.estado === 'EFECTIVO', '#16A34A');
+    ChartsModule.renderByMonth(rows);
+    ChartsModule.renderByDay(rows);
 
-    // Tiempos (AM = creación/alistamiento, AN = aceptación/entrega)
-    ChartsModule.renderAvgTimeByMonth('chartTiempoCreacionMes', rows, 'tiempoCreacion', '#2563EB', 'Creación/Alistamiento');
-    ChartsModule.renderAvgTimeByMonth('chartTiempoAceptacionMes', rows, 'tiempoAceptacion', '#16A34A', 'Aceptación/Entrega');
+    // SLA — tiempos
     ChartsModule.renderAvgTimeTopBar('chartTiempoCreacionCiudad', rows, r => r.ciudad, 'tiempoCreacion', 15, '#2563EB');
     ChartsModule.renderAvgTimeTopBar('chartTiempoAceptacionCiudad', rows, r => r.ciudad, 'tiempoAceptacion', 15, '#16A34A');
     ChartsModule.renderAvgTimeGrouped('chartTiempoTipoServicio', rows, r => r.tipoServicio, 12);
+    ChartsModule.renderTiempoTendenciaMensual('chartTiempoTendenciaMensual', rows);
     ChartsModule.renderSlaDistribution(rows);
     ChartsModule.renderSlaGauge(rows);
 
@@ -2734,6 +2939,7 @@ const MapModule = (() => {
     { key: 'puntoVenta', label: 'Punto de Venta', fmt: r => r.puntoVenta },
     { key: 'cenLog', label: 'CenLog', fmt: r => r.cenLog },
     { key: 'cliente', label: 'Cliente', fmt: r => r.cliente },
+    { key: 'documentoUsuario', label: 'Documento', fmt: r => r.documentoUsuario },
     { key: 'canal', label: 'Canal', fmt: r => r.canal },
     { key: 'tipoServicio', label: 'Tipo Servicio', fmt: r => r.tipoServicio },
     { key: 'estado', label: 'Estado', fmt: r => r.estado },
