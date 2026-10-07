@@ -243,6 +243,7 @@ body.sidebar-collapsed .nav-item { justify-content: center; }
 .kpi-dot--neutral { background: var(--grey-300); }
 .kpi-value { font-family: var(--font-mono); font-size: 22px; font-weight: 700; color: var(--grey-900); line-height: 1.1; }
 .kpi-label { font-size: 12px; color: var(--grey-500); margin-top: 4px; font-weight: 600; }
+.kpi-sub { font-size: 11.5px; color: var(--grey-600, #475569); margin-top: 4px; line-height: 1.35; }
 .kpi-var { display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; font-weight: 700; margin-top: 6px; }
 .kpi-var--good { color: var(--green-600); }
 .kpi-var--bad { color: var(--red-600); }
@@ -257,6 +258,9 @@ body.sidebar-collapsed .nav-item { justify-content: center; }
 .summary-row b { font-family: var(--font-mono); color: var(--grey-900); }
 .summary-empty { font-size: 12px; color: var(--grey-500); }
 
+.inicio-summary { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 18px; }
+@media (max-width: 900px) { .inicio-summary { grid-template-columns: 1fr; } }
+.summary-tag { font-size: 12px; font-weight: 700; color: var(--grey-500); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px; }
 .findings-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
 .findings-list li {
   font-size: 13px; color: var(--grey-700); line-height: 1.5; padding: 8px 10px;
@@ -478,20 +482,11 @@ tbody tr:hover { background: var(--grey-50); }
       <p class="chart-subtitle" style="margin-bottom:14px;">Resumen ejecutivo — cómo está la operación en general</p>
       <div id="kpiGrid" class="kpi-grid"></div>
 
-      <div class="chart-grid chart-grid--2">
-        <div class="card"><h3>Volumen por ciudad</h3><div class="chart-box"><canvas id="chartInicioVolumenCiudad"></canvas></div></div>
-        <div class="card"><h3>Efectividad por ciudad</h3><div class="chart-box"><canvas id="chartInicioEfectividadCiudad"></canvas></div></div>
-      </div>
-
-      <div class="chart-grid chart-grid--2">
-        <div class="card">
-          <h3>Resumen de novedades</h3>
-          <div id="inicioNovedadResumen" class="summary-block"></div>
-        </div>
-        <div class="card">
-          <h3>Principales hallazgos</h3>
-          <ul id="inicioHallazgos" class="findings-list"></ul>
-        </div>
+      <div class="inicio-summary">
+        <div class="card"><h3>Volumen</h3><div id="inicioVolumen" class="summary-block"></div></div>
+        <div class="card"><h3>Efectividad</h3><div id="inicioEfectividad" class="summary-block"></div></div>
+        <div class="card"><h3>Novedades</h3><div id="inicioNovedades" class="summary-block"></div></div>
+        <div class="card"><h3>Tiempos</h3><div id="inicioTiempos" class="summary-block"></div></div>
       </div>
     </section>
 
@@ -501,23 +496,12 @@ tbody tr:hover { background: var(--grey-50); }
       <p class="chart-subtitle" style="margin-bottom:14px;">¿Qué resultados estamos obteniendo? — volumen, efectividad, novedades, tipo de servicio y puntos de venta</p>
       <div id="kpiGridIndicadores" class="kpi-grid"></div>
 
-      <h2 class="section-title" style="font-size:16px;margin:6px 0 10px;">Oportunidad de Entrega</h2>
-      <p class="chart-subtitle" style="margin-bottom:10px;">Servicios cuyo número de entrega (columna B) está repetido. Dejan de contarse como "cerrados con novedad".</p>
-      <div id="oportunidadBox" class="kpi-grid"></div>
-      <div class="chart-grid chart-grid--2" style="margin-bottom:18px;">
-        <div class="card"><h3>Oportunidad de entrega por ciudad</h3><div class="chart-box"><canvas id="chartOportunidadCiudad"></canvas></div></div>
-        <div class="card"><h3>Oportunidad de entrega por punto de venta</h3><div class="chart-box"><canvas id="chartOportunidadPunto"></canvas></div></div>
-      </div>
-
       <div class="chart-grid chart-grid--2">
-        <div class="card"><h3>Top ciudades por volumen</h3><div class="chart-box"><canvas id="chartTopCiudadesVolumen"></canvas></div></div>
-        <div class="card"><h3>Efectividad por ciudad</h3><div class="chart-box"><canvas id="chartEfectividadCiudad"></canvas></div></div>
-
         <div class="card"><h3>Participación por tipo de servicio</h3><div class="chart-box"><canvas id="chartTipoServicioTorta"></canvas></div></div>
         <div class="card"><h3>Efectividad por tipo de servicio</h3><div class="chart-box"><canvas id="chartTipoServicioEfectividad"></canvas></div></div>
 
-        <div class="card"><h3>Detalle por tipo de novedad</h3><div class="chart-box"><canvas id="chartNovedadTorta"></canvas></div></div>
-        <div class="card"><h3>Top ciudades con más novedades</h3><div class="chart-box"><canvas id="chartNovedadCiudad"></canvas></div></div>
+        <div class="card"><h3>Top ciudades por volumen</h3><div class="chart-box"><canvas id="chartTopCiudadesVolumen"></canvas></div></div>
+        <div class="card"><h3>Efectividad por ciudad</h3><div class="chart-box"><canvas id="chartEfectividadCiudad"></canvas></div></div>
       </div>
 
       <div class="chart-grid chart-grid--1">
@@ -555,6 +539,14 @@ tbody tr:hover { background: var(--grey-50); }
           </div>
         </div>
 
+      </div>
+
+      <div class="chart-grid chart-grid--2">
+        <div class="card"><h3>Detalle por tipo de novedad</h3><div class="chart-box"><canvas id="chartNovedadTorta"></canvas></div></div>
+        <div class="card"><h3>Top ciudades con más novedades</h3><div class="chart-box"><canvas id="chartNovedadCiudad"></canvas></div></div>
+      </div>
+
+      <div class="chart-grid chart-grid--1">
         <div class="card card--full table-card">
           <h3 style="padding:16px 18px 0;">Detalle de cierres con novedad</h3>
           <p class="chart-subtitle" style="padding:0 18px;">Cantidad exacta de novedades por punto de venta, ciudad y motivo</p>
@@ -593,23 +585,28 @@ tbody tr:hover { background: var(--grey-50); }
         <div class="card"><h3>% Novedades por mes</h3><div class="chart-box"><canvas id="chartNovedades"></canvas></div></div>
         <div class="card card--full"><h3>% Cancelaciones por mes</h3><div class="chart-box"><canvas id="chartCancelaciones"></canvas></div></div>
       </div>
+      <h2 class="section-title" style="font-size:16px;margin:26px 0 10px;">Oportunidad de Entrega</h2>
+      <p class="chart-subtitle" style="margin-bottom:10px;">Entregas repetidas (columna B) entre los cerrados con novedad. Cada entrega repetida cuenta una sola vez y deja de contarse como novedad.</p>
+      <div id="oportunidadBox" class="kpi-grid"></div>
+      <div class="chart-grid chart-grid--2" style="margin-bottom:18px;">
+        <div class="card"><h3>Oportunidad de entrega por ciudad</h3><div class="chart-box"><canvas id="chartOportunidadCiudad"></canvas></div></div>
+        <div class="card"><h3>Oportunidad de entrega por punto de venta</h3><div class="chart-box"><canvas id="chartOportunidadPunto"></canvas></div></div>
+      </div>
+
     </section>
 
     <!-- ---------- OPERACIÓN ---------- -->
     <section id="section-operacion" class="section">
       <h1 class="section-title">Operación</h1>
-      <p class="chart-subtitle" style="margin-bottom:14px;">¿Dónde y cómo se está ejecutando la operación? — ciudad, canal, CenLog, tipo de servicio y punto de venta</p>
+      <p class="chart-subtitle" style="margin-bottom:14px;">¿Dónde y cómo se está ejecutando la operación? — canal, tipo de servicio, ciudad y punto de venta</p>
       <div class="chart-grid chart-grid--2">
-        <div class="card"><h3>Distribución por Ciudad</h3><div class="chart-box"><canvas id="chartByCity"></canvas></div></div>
-        <div class="card"><h3>Distribución por Canal</h3><p class="chart-subtitle">Por Tipo Canal — no se encontró una columna "Canal" independiente en la hoja</p><div class="chart-box"><canvas id="chartByChannelType"></canvas></div></div>
-
-        <div class="card"><h3>Distribución por CenLog</h3><div class="chart-box"><canvas id="chartOperacionCenLog"></canvas></div></div>
+        <div class="card"><h3>Distribución por Canal</h3><div class="chart-box"><canvas id="chartByChannelType"></canvas></div></div>
         <div class="card"><h3>Distribución por Tipo de Servicio</h3><div class="chart-box"><canvas id="chartOperacionTipoServicio"></canvas></div></div>
 
+        <div class="card card--full"><h3>Distribución por Ciudad</h3><div class="chart-box"><canvas id="chartByCity"></canvas></div></div>
         <div class="card card--full"><h3>Distribución por Punto de Venta</h3><div class="chart-box"><canvas id="chartOperacionPuntoVenta"></canvas></div></div>
 
-        <div class="card"><h3>Distribución por municipio</h3><div class="chart-box"><canvas id="chartByMunicipality"></canvas></div></div>
-        <div class="card"><h3>Distribución por hora</h3><div class="chart-box"><canvas id="chartByHour"></canvas></div></div>
+        <div class="card card--full"><h3>Distribución por municipio</h3><div class="chart-box"><canvas id="chartByMunicipality"></canvas></div></div>
         <div class="card"><h3>Distribución por mes</h3><div class="chart-box"><canvas id="chartByMonth"></canvas></div></div>
         <div class="card"><h3>Distribución por día</h3><div class="chart-box"><canvas id="chartByDay"></canvas></div></div>
       </div>
@@ -1150,13 +1147,13 @@ const DataLayer = (() => {
     TIEMPO_ACEPTACION: ['TIEMPO ACEPTACION A FINALIZACION', 'TIEMPO ACEPTACION', 'TIEMPO ENTREGA'],
     COORD_X: ['cx_cierre', 'LATITUD', 'LAT'],
     COORD_Y: ['cy_cierre', 'LONGITUD', 'LON', 'LNG'],
-    FECHA_FILTRO: [] // sin nombre: se resuelve solo por la letra AJ (ver LETTER_FALLBACK) porque el usuario pidió esa columna explícitamente
+    FECHA_FILTRO: [] // sin nombre: se resuelve solo por la letra E (fecha de entrega, ver LETTER_FALLBACK) porque el usuario pidió esa columna explícitamente
   };
   // Respaldo por letra exacta de columna, SOLO si el nombre no aparece en absoluto
   const LETTER_FALLBACK = {
     NOVEDAD_1: 'M', NUM_ENTREGA: 'B',
     CIUDAD: 'AK', TIPO_SERVICIO: 'X', TIPO_SERVICIO_AG: 'AG', TIPO_CANAL: 'AF', CENLOG_Z: 'Z', CENLOG_Y: 'Y',
-    FECHA_FILTRO: 'AJ',
+    FECHA_FILTRO: 'E',
     TIEMPO_CREACION: 'AM', TIEMPO_ACEPTACION: 'AN', COORD_X: 'AA', COORD_Y: 'AB'
   };
 
@@ -1270,7 +1267,7 @@ const DataLayer = (() => {
       const anio = map.ANIO ? Utils.parseNumber(row[map.ANIO]) : (fecha ? fecha.getFullYear() : null);
       const mesNum = map.MES ? (Utils.parseNumber(row[map.MES]) || monthNameToNum(row[map.MES])) : (fecha ? fecha.getMonth() + 1 : null);
 
-      // Filtro de fecha (Desde/Hasta): por pedido explícito, se toma de la columna AJ, no de fecha_creacion.
+      // Filtro de fecha (Desde/Hasta): por pedido explícito, se toma de la columna E (fecha de entrega), no de fecha_creacion.
       const fechaFiltroRaw = map.FECHA_FILTRO ? row[map.FECHA_FILTRO] : null;
       let fechaFiltro = fechaFiltroRaw ? Utils.parseDate(fechaFiltroRaw) : null;
       if (!fechaFiltro && fechaFiltroRaw) {
@@ -1416,21 +1413,30 @@ const DataLayer = (() => {
     return out;
   }
 
-  /* Oportunidad de entrega: servicios cuyo número de entrega (columna B) aparece en más de una fila
-     (en cualquiera de las hojas). Esos servicios se marcan esDuplicado y, si venían como
-     "cerrado con novedad", dejan de contarse como novedad (estado OPORTUNIDAD). */
+  /* Oportunidad de entrega: entre los servicios "cerrados con novedad", un número de entrega (columna B)
+     que aparece en más de una fila es un duplicado. Cada entrega repetida cuenta UNA sola vez
+     (una fila representante con estado OPORTUNIDAD); las demás filas repetidas se descartan para
+     no inflar el total. Resultado: Total = Entregados + Oportunidad + Cerrados con novedad. */
   function markDuplicadosEntrega(rows) {
-    const counts = new Map();
-    rows.forEach(r => { if (r.numEntrega) counts.set(r.numEntrega, (counts.get(r.numEntrega) || 0) + 1); });
-    let dups = 0, novedadesReclasificadas = 0;
+    const groups = new Map();
     rows.forEach(r => {
-      r.esDuplicado = !!(r.numEntrega && counts.get(r.numEntrega) > 1);
-      if (r.esDuplicado) {
-        dups++;
-        if (r.estado === 'NOVEDAD') { r.estado = 'OPORTUNIDAD'; r.esNovedadReal = false; r.novedadDetalle = 'Sin dato'; novedadesReclasificadas++; }
+      if (r.estado === 'NOVEDAD' && r.numEntrega) {
+        const g = groups.get(r.numEntrega);
+        if (g) g.push(r); else groups.set(r.numEntrega, [r]);
       }
     });
-    state.diagnostics.duplicados = { servicios: dups, novedadesReclasificadas, entregasRepetidas: Array.from(counts.values()).filter(c => c > 1).length };
+    const drop = new Set();
+    let oportunidades = 0, descartadas = 0;
+    groups.forEach(g => {
+      if (g.length < 2) return;
+      const rep = g[0];
+      rep.estado = 'OPORTUNIDAD'; rep.esNovedadReal = false; rep.esDuplicado = true;
+      rep.novedadDetalle = 'Sin dato'; rep.repeticiones = g.length;
+      oportunidades++;
+      for (let i = 1; i < g.length; i++) { drop.add(g[i]); descartadas++; }
+    });
+    state.diagnostics.duplicados = { oportunidades, filasDescartadas: descartadas };
+    return drop.size ? rows.filter(r => !drop.has(r)) : rows;
   }
 
   /* ---------- Carga completa ---------- */
@@ -1445,13 +1451,13 @@ const DataLayer = (() => {
       fetchSheetCSV(state.gids.percapita).catch(() => ({ data: [] }))
     ]);
 
-    const rows = [
+    let rows = [
       ...normalizeRows(h1, 'hoja1'),
       ...normalizeRows(h2, 'hoja2'),
       ...normalizeRows(h3, 'hoja3')
     ];
 
-    markDuplicadosEntrega(rows);
+    rows = markDuplicadosEntrega(rows);
     state.rawRows = rows;
     state.percapitaRows = normalizePercapita(pc);
     state.lastUpdated = new Date();
@@ -1733,19 +1739,50 @@ const ChartsModule = (() => {
     Chart.defaults.plugins.legend.labels.boxWidth = 8;
   } catch (e) { console.warn('No se pudo aplicar el tema por defecto a Chart.js', e); }
 
+  /* Plugin: escribe el valor de cada barra/punto (fmt) junto a la barra */
+  function valueLabelsPlugin(fmt, opts) {
+    opts = opts || {};
+    return {
+      id: 'valueLabels',
+      afterDatasetsDraw(chart) {
+        const ctx = chart.ctx;
+        ctx.save();
+        ctx.font = '600 10.5px ui-monospace, Menlo, monospace';
+        ctx.fillStyle = opts.color || '#334155';
+        const horizontal = chart.options.indexAxis === 'y';
+        chart.data.datasets.forEach((ds, di) => {
+          const meta = chart.getDatasetMeta(di);
+          if (meta.hidden || (ds.type && ds.type !== 'bar' && meta.type !== 'bar')) return;
+          meta.data.forEach((el, i) => {
+            const v = ds.data[i];
+            if (v === null || v === undefined) return;
+            const t = fmt(v, ds, i);
+            if (horizontal) { ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(t, el.x + 4, el.y); }
+            else { ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillText(t, el.x, el.y - 3); }
+          });
+        });
+        ctx.restore();
+      }
+    };
+  }
+
   function upsert(id, type, data, options) {
     try {
       const canvas = document.getElementById(id);
       if (!canvas) return null;
       if (registry[id]) { registry[id].destroy(); delete registry[id]; }
+      const opts = Object.assign({}, options || {});
+      const inlinePlugins = opts._plugins || [];
+      delete opts._plugins;
       registry[id] = new Chart(canvas, {
         type, data,
+        plugins: inlinePlugins,
         options: Object.assign({
           responsive: true,
           maintainAspectRatio: false,
           animation: { duration: 400 },
           plugins: { legend: { display: true } }
-        }, options || {})
+        }, opts)
       });
       return registry[id];
     } catch (e) {
@@ -1931,7 +1968,7 @@ const ChartsModule = (() => {
     paginationState[chartId] = { entries, page: 0, pageSize };
     upsert(chartId, 'bar', { labels: [], datasets: [{ label, data: [], backgroundColor: color, borderRadius: 4 }] }, {
       indexAxis, plugins: { legend: { display: false } },
-      scales: isRate ? { x: indexAxis === 'y' ? { max: 100, ticks: { callback: v => v + '%' } } : undefined, y: indexAxis === 'x' ? { max: 100, ticks: { callback: v => v + '%' } } : undefined } : undefined
+      scales: isRate ? (indexAxis === 'y' ? { x: { max: 100, ticks: { callback: v => v + '%' } } } : { y: { max: 100, ticks: { callback: v => v + '%' } } }) : undefined
     });
     renderPaginationPage(chartId, pagId);
     wirePaginationControls(pagId, chartId);
@@ -2013,15 +2050,26 @@ const ChartsModule = (() => {
       if (r.tiempoAceptacion !== null && r.tiempoAceptacion !== undefined) { const arr = mapA.get(k) || []; arr.push(r.tiempoAceptacion); mapA.set(k, arr); }
     });
     const top = Array.from(countMap.entries()).sort((a, b) => b[1] - a[1]).slice(0, n).map(e => e[0]);
-    const avgC = top.map(k => { const arr = mapC.get(k); return arr && arr.length ? Number((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1)) : null; });
-    const avgA = top.map(k => { const arr = mapA.get(k); return arr && arr.length ? Number((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1)) : null; });
+    const avg = (m, k) => { const arr = m.get(k); return arr && arr.length ? Number((arr.reduce((a, b) => a + b, 0) / arr.length).toFixed(1)) : null; };
+    const avgC = top.map(k => avg(mapC, k));
+    const avgA = top.map(k => avg(mapA, k));
     upsert(id, 'bar', {
       labels: top,
       datasets: [
         { label: 'Creación / Alistamiento', data: avgC, backgroundColor: '#2563EB', borderRadius: 4 },
         { label: 'Aceptación / Entrega', data: avgA, backgroundColor: '#16A34A', borderRadius: 4 }
       ]
-    }, { plugins: { legend: { display: true } } });
+    }, {
+      plugins: {
+        legend: { display: true },
+        tooltip: { callbacks: {
+          label: ctx => `${ctx.dataset.label}: ${Utils.minutesToHHMM(ctx.parsed.y)}`,
+          footer: items => `Servicios del tipo: ${Utils.formatNumber(countMap.get(items[0].label) || 0)}`
+        } }
+      },
+      scales: { y: { title: { display: true, text: 'Tiempo promedio (hh:mm)' }, ticks: { callback: v => Utils.minutesToHHMM(v) } } },
+      _plugins: [valueLabelsPlugin(v => Utils.minutesToHHMM(v))]
+    });
   }
 
   /* ---------- Tiempos: tendencia mensual combinada (alistamiento vs entrega en una sola gráfica) ---------- */
@@ -2144,18 +2192,38 @@ const ChartsModule = (() => {
       ]
     }, { scales: { y: { position: 'left', title: { display: true, text: 'Servicios / mensajero' } }, y1: { position: 'right', title: { display: true, text: 'Ticket $' }, grid: { drawOnChartArea: false } } } });
   }
-  function pcTopBar(id, pcRows, keyFn, color, n) {
+  function pcEntries(pcRows, keyFn, n) {
     const g = pcGroup(pcRows, keyFn);
-    const entries = Array.from(g.entries()).map(([k, arr]) => [k, pcAgg(arr)]).filter(e => e[1].percapita !== null);
+    const entries = Array.from(g.entries()).map(([k, arr]) => [k, pcAgg(arr), arr]).filter(e => e[1].percapita !== null);
     entries.sort((a, b) => b[1].percapita - a[1].percapita);
-    const top = entries.slice(0, n);
-    upsert(id, 'bar', {
-      labels: top.map(t => t[0]),
-      datasets: [{ label: 'Servicios por mensajero', data: top.map(t => Number(t[1].percapita.toFixed(1))), backgroundColor: color, borderRadius: 4 }]
-    }, { indexAxis: 'y', plugins: { legend: { display: false } } });
+    return entries.slice(0, n);
   }
-  function renderPercapitaByCity(pcRows) { pcTopBar('chartPercapitaCity', pcRows, r => r.ciudad, '#16A34A', 15); }
-  function renderPercapitaByFarmacia(pcRows) { pcTopBar('chartPercapitaFarmacia', pcRows, r => r.puntoVenta, '#0EA5E9', 15); }
+  // Ciudades: columnas verticales, color degradado según el valor, con el número encima
+  function renderPercapitaByCity(pcRows) {
+    const top = pcEntries(pcRows, r => r.ciudad, 12);
+    const vals = top.map(t => Number(t[1].percapita.toFixed(1)));
+    const mx = Math.max(...vals, 1);
+    upsert('chartPercapitaCity', 'bar', {
+      labels: top.map(t => t[0]),
+      datasets: [{ label: 'Servicios por mensajero', data: vals,
+        backgroundColor: vals.map(v => `rgba(22,163,74,${(0.35 + 0.65 * (v / mx)).toFixed(2)})`), borderRadius: 8, borderSkipped: false, maxBarThickness: 46 }]
+    }, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grace: '12%' }, x: { grid: { display: false } } }, layout: { padding: { top: 14 } },
+      _plugins: [valueLabelsPlugin(v => v.toFixed(1))] });
+  }
+  // Puntos de venta: barras horizontales delgadas, color según modelo (fijo / colaborativo)
+  function renderPercapitaByFarmacia(pcRows) {
+    const top = pcEntries(pcRows, r => r.puntoVenta, 15);
+    const palette = { FIJO: '#2563EB', COLABORATIVO: '#F59E0B' };
+    const modeloDe = (arr) => { const c = {}; arr.forEach(r => { c[r.modelo] = (c[r.modelo] || 0) + 1; }); return Object.entries(c).sort((a, b) => b[1] - a[1])[0][0]; };
+    const modelos = top.map(t => modeloDe(t[2]));
+    upsert('chartPercapitaFarmacia', 'bar', {
+      labels: top.map(t => t[0]),
+      datasets: [{ label: 'Servicios por mensajero', data: top.map(t => Number(t[1].percapita.toFixed(1))),
+        backgroundColor: modelos.map(m => palette[m] || '#64748B'), borderRadius: 20, barThickness: 11 }]
+    }, { indexAxis: 'y', plugins: { legend: { display: false }, tooltip: { callbacks: { afterLabel: ctx => 'Modelo: ' + modelos[ctx.dataIndex] } } },
+      layout: { padding: { right: 38 } }, scales: { x: { grid: { display: false }, beginAtZero: true }, y: { grid: { display: false } } },
+      _plugins: [valueLabelsPlugin(v => v.toFixed(1))] });
+  }
   function renderPercapitaModelo(pcRows) {
     const g = pcGroup(pcRows, r => r.modelo);
     const entries = Array.from(g.entries()).map(([k, arr]) => [k, pcAgg(arr)]);
@@ -2176,13 +2244,13 @@ const ChartsModule = (() => {
         pcVals.push(g.has(m) ? Math.round(pcAgg(g.get(m)).servicios) : null);
       }
     }
-    upsert('chartPercapitaVsServicios', 'bar', {
+    upsert('chartPercapitaVsServicios', 'line', {
       labels,
       datasets: [
-        { type: 'bar', label: 'Servicios operados (hojas)', data: opVals, backgroundColor: '#2563EB', borderRadius: 4 },
-        { type: 'bar', label: 'Servicios en Percápita', data: pcVals, backgroundColor: '#F59E0B', borderRadius: 4 }
+        { label: 'Servicios operados (hojas)', data: opVals, borderColor: '#2563EB', backgroundColor: 'rgba(37,99,235,.15)', fill: true, tension: .35, pointRadius: 4, pointHoverRadius: 6 },
+        { label: 'Servicios en Percápita', data: pcVals, borderColor: '#F59E0B', backgroundColor: 'rgba(245,158,11,.15)', fill: true, tension: .35, pointRadius: 4, borderDash: [6, 4], pointHoverRadius: 6 }
       ]
-    });
+    }, { interaction: { mode: 'index', intersect: false }, scales: { y: { beginAtZero: true } } });
   }
 
   function destroyAll() { Object.values(registry).forEach(c => c.destroy()); }
@@ -2192,7 +2260,7 @@ const ChartsModule = (() => {
     renderRateBarH, renderPaginatedSingle, renderPaginatedGrouped,
     renderAvgTimeByMonth, renderAvgTimeTopBar, renderAvgTimeGrouped, renderTiempoTendenciaMensual,
     renderSlaDistribution, renderSlaGauge,
-    renderPercapitaMonthly, renderPercapitaByCity, renderPercapitaByFarmacia, renderPercapitaVsServicios, renderPercapitaModelo, pcAgg,
+    renderPercapitaMonthly, renderPercapitaByCity, renderPercapitaByFarmacia, renderPercapitaVsServicios, renderPercapitaModelo, pcAgg, valueLabelsPlugin,
     groupCount, topN, destroyAll, registry
   };
 })();
@@ -2212,6 +2280,8 @@ const MapModule = (() => {
   let map = null;
   let markersLayer = null;
   let heatLayer = null;
+  let lastHeatPoints = [];
+  let fittedOnce = false;
   let onMarkerClick = () => {};
   const geocodeCache = Utils.lsGet('geocode_cache_v1') || {};
   let geocodeQueue = [];
@@ -2263,11 +2333,12 @@ const MapModule = (() => {
   function init(elementId, markerClickCb) {
     onMarkerClick = markerClickCb || (() => {});
     map = L.map(elementId, { scrollWheelZoom: true }).setView([4.5709, -74.2973], 5.4);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OpenStreetMap &copy; CARTO', maxZoom: 18
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors', maxZoom: 19
     }).addTo(map);
     if (typeof L.heatLayer === 'function') {
-      heatLayer = L.heatLayer([], { radius: 22, blur: 18, maxZoom: 12, minOpacity: 0.35 }).addTo(map);
+      // Se crea SIN añadirla al mapa: el contenedor está oculto (tamaño 0) y leaflet.heat falla al dibujar; se monta en render() cuando ya es visible
+      heatLayer = L.heatLayer([], { radius: 20, blur: 16, maxZoom: 11, max: 1.0, minOpacity: 0.4, gradient: { 0.2: '#3B82F6', 0.4: '#22C55E', 0.6: '#FACC15', 0.8: '#F97316', 1.0: '#DC2626' } });
     }
     markersLayer = L.layerGroup().addTo(map);
   }
@@ -2326,8 +2397,19 @@ const MapModule = (() => {
         for (let i = 0; i < HEAT_CAP; i++) sampled.push(coordRows[Math.floor(i * step)]);
         coordRows = sampled;
       }
-      const heatPoints = coordRows.map(r => [r.lat, r.lng, 0.55]);
-      heatLayer.setLatLngs(heatPoints);
+      const heatPoints = coordRows.map(r => [r.lat, r.lng, 0.35]);
+      lastHeatPoints = heatPoints;
+      // El mapa se crea oculto (pestaña inactiva): se vuelve a montar la capa y se recalcula el tamaño cuando ya es visible
+      setTimeout(() => {
+        if (!map) return;
+        map.invalidateSize();
+        try { map.removeLayer(heatLayer); } catch (e) {}
+        heatLayer.setLatLngs(heatPoints);
+        heatLayer.addTo(map);
+        if (heatPoints.length && !fittedOnce) {
+          try { map.fitBounds(L.latLngBounds(heatPoints.map(p => [p[0], p[1]])), { padding: [30, 30], maxZoom: 9 }); fittedOnce = true; } catch (e) {}
+        }
+      }, 250);
     }
 
     const data = aggregateByPlace(rows, pcRows, useMunicipio);
@@ -2635,8 +2717,7 @@ const MapModule = (() => {
 
     safe('KPIs', () => renderKPIs(filteredRows));
     safe('KPIs Indicadores', () => renderKPIsIndicadores(filteredRows));
-    safe('resumen novedades Inicio', () => renderInicioResumenNovedades(filteredRows));
-    safe('hallazgos Inicio', () => renderInicioHallazgos(filteredRows));
+    safe('resumen Inicio', () => renderInicioResumen(filteredRows));
     safe('estadísticas SLA', () => renderSlaStats(filteredRows));
     safe('gráficos', () => renderCharts(filteredRows, pcRows));
     safe('mapa', () => renderMap());
@@ -2716,6 +2797,7 @@ const MapModule = (() => {
     const efectivos = rows.filter(r => r.estado === 'EFECTIVO').length;
     const cancelados = rows.filter(r => r.estado === 'CANCELADO').length;
     const novedades = rows.filter(r => r.estado === 'NOVEDAD').length;
+    const oportunidades = rows.filter(r => r.estado === 'OPORTUNIDAD').length;
     const tiemposCreacion = rows.map(r => r.tiempoCreacion).filter(v => v !== null && v !== undefined);
     const tiempoCreacionProm = tiemposCreacion.length ? tiemposCreacion.reduce((a, b) => a + b, 0) / tiemposCreacion.length : null;
     const tiemposAceptacion = rows.map(r => r.tiempoAceptacion).filter(v => v !== null && v !== undefined);
@@ -2726,14 +2808,15 @@ const MapModule = (() => {
     const municipios = new Set(rows.map(r => r.municipio).filter(c => c && c !== 'Sin dato')).size;
     const cumplimiento = total ? (efectivos / total) * 100 : null;
     return {
-      total, efectivos, cancelados, novedades, tiempoCreacionProm, tiempoAceptacionProm, ticketProm, ciudades, municipios, cumplimiento,
+      total, efectivos, cancelados, novedades, oportunidades, tiemposCreacionN: tiemposCreacion.length, tiemposAceptacionN: tiemposAceptacion.length, tiempoCreacionProm, tiempoAceptacionProm, ticketProm, ciudades, municipios, cumplimiento,
       cancelacionesPct: total ? (cancelados / total) * 100 : null,
       novedadesPct: total ? (novedades / total) * 100 : null,
+      oportunidadPct: total ? (oportunidades / total) * 100 : null,
       entregadosPct: total ? (efectivos / total) * 100 : null
     };
   }
 
-  function kpiCard(label, valueStr, variation, arrowGoodWhenUp, semaforoState, icon) {
+  function kpiCard(label, valueStr, variation, arrowGoodWhenUp, semaforoState, icon, sub) {
     let varHtml = '';
     if (variation !== null && variation !== undefined && isFinite(variation)) {
       const up = variation >= 0;
@@ -2747,27 +2830,32 @@ const MapModule = (() => {
       <div class="kpi-card__top"><span class="kpi-icon">${icon}</span>${dot}</div>
       <div class="kpi-value">${valueStr}</div>
       <div class="kpi-label">${label}</div>
+      ${sub ? `<div class="kpi-sub">${sub}</div>` : ''}
       ${varHtml}
     </div>`;
   }
 
-  function renderKPIs(rows) {
+  function buildConsolidadoCards(rows) {
     const { current, previous } = getComparisonSets(rows);
     const cur = kpiStats(rows);
     const prevStats = previous ? kpiStats(previous) : null;
     const curForVar = previous ? kpiStats(current) : null;
-
     const v = (key) => (prevStats && curForVar) ? Utils.variation(curForVar[key], prevStats[key]) : null;
-
-    const cards = [
-      kpiCard('Total Servicios', Utils.formatNumber(cur.total), v('total'), true, null, '📦'),
-      kpiCard('% Entregados', Utils.formatPct(cur.entregadosPct), v('entregadosPct'), true, Utils.semaforo(cur.entregadosPct, KPI_THRESHOLDS.cumplimiento), '✅'),
-      kpiCard('% Cerrados con Novedad', Utils.formatPct(cur.novedadesPct), v('novedadesPct'), false, null, '⚠️'),
-      kpiCard('Tiempo Prom. Alistamiento', Utils.minutesToHHMM(cur.tiempoCreacionProm), v('tiempoCreacionProm'), false, null, '🕐'),
-      kpiCard('Tiempo Prom. Entrega', Utils.minutesToHHMM(cur.tiempoAceptacionProm), v('tiempoAceptacionProm'), false, null, '⏱')
+    const n = Utils.formatNumber;
+    const pctOf = (x) => Utils.formatPct(cur.total ? (x / cur.total) * 100 : null);
+    const conSla = rows.filter(r => r.dentroSla !== null && r.dentroSla !== undefined);
+    const dentro = conSla.filter(r => r.dentroSla).length;
+    const slaPct = conSla.length ? (dentro / conSla.length) * 100 : null;
+    return [
+      kpiCard('Total Servicios', n(cur.total), v('total'), true, null, '📦', '100% de la base'),
+      kpiCard('Entregados', n(cur.efectivos), v('entregadosPct'), true, Utils.semaforo(cur.entregadosPct, KPI_THRESHOLDS.cumplimiento), '✅', `${Utils.formatPct(cur.entregadosPct)} del total`),
+      kpiCard('Oportunidad de Entrega', n(cur.oportunidades), v('oportunidadPct'), false, null, '🔁', `${Utils.formatPct(cur.oportunidadPct)} del total`),
+      kpiCard('Cerrados con Novedad', n(cur.novedades), v('novedadesPct'), false, null, '⚠️', `${Utils.formatPct(cur.novedadesPct)} del total`),
+      kpiCard('Tiempo de Alistamiento', Utils.minutesToHHMM(cur.tiempoCreacionProm), v('tiempoCreacionProm'), false, null, '🕐', `${n(cur.tiemposCreacionN)} servicios (${pctOf(cur.tiemposCreacionN)})`),
+      kpiCard('Tiempo de Entrega', Utils.minutesToHHMM(cur.tiempoAceptacionProm), v('tiempoAceptacionProm'), false, null, '⏱', `${n(cur.tiemposAceptacionN)} servicios (${pctOf(cur.tiemposAceptacionN)})` + (slaPct !== null ? ` · ${Utils.formatPct(slaPct)} dentro de SLA` : ''))
     ];
-    els.kpiGrid.innerHTML = cards.join('');
   }
+  function renderKPIs(rows) { els.kpiGrid.innerHTML = buildConsolidadoCards(rows).join(''); }
 
   function renderPercapitaKPIs(pcRows) {
     const box = document.getElementById('pcKpiGrid');
@@ -2792,52 +2880,86 @@ const MapModule = (() => {
     ].join('');
   }
 
-  /* Oportunidad de entrega: servicios con número de entrega (col. B) repetido */
+  /* Oportunidad de entrega: una unidad por número de entrega repetido (solo cerrados con novedad) */
   function renderOportunidadEntrega(rows) {
     const box = document.getElementById('oportunidadBox');
     if (!box) return;
     const total = rows.length;
-    const dups = rows.filter(r => r.esDuplicado);
-    const pct = total ? (dups.length / total) * 100 : null;
-    const entregasRepetidas = new Set(dups.map(r => r.numEntrega)).size;
-    const reclas = dups.filter(r => r.estado === 'OPORTUNIDAD').length;
+    const ops = rows.filter(r => r.estado === 'OPORTUNIDAD');
+    const pct = total ? (ops.length / total) * 100 : null;
+    const filasRepetidas = ops.reduce((a, r) => a + (r.repeticiones || 1), 0);
     box.innerHTML = [
-      kpiCard('% Oportunidad de Entrega', pct !== null ? Utils.formatPct(pct) : '—', null, false, null, '🔁'),
-      kpiCard('Servicios duplicados', Utils.formatNumber(dups.length), null, false, null, '📑'),
-      kpiCard('Entregas repetidas', Utils.formatNumber(entregasRepetidas), null, false, null, '🔢'),
-      kpiCard('Antes eran novedad', Utils.formatNumber(reclas), null, false, null, '⚠️')
+      kpiCard('Oportunidad de Entrega', Utils.formatNumber(ops.length), null, false, null, '🔁', pct !== null ? `${Utils.formatPct(pct)} del total` : ''),
+      kpiCard('Filas repetidas en la hoja', Utils.formatNumber(filasRepetidas), null, false, null, '📑', 'se cuenta 1 por entrega'),
+      kpiCard('Promedio de repeticiones', ops.length ? (filasRepetidas / ops.length).toFixed(1) : '—', null, false, null, '🔢', 'filas por entrega repetida')
     ].join('');
-    ChartsModule.renderTopBar('chartOportunidadCiudad', dups, r => r.ciudad, 15, '#8B5CF6');
-    ChartsModule.renderTopBarV('chartOportunidadPunto', dups, r => r.puntoVenta, 15, '#F97316');
+    ChartsModule.renderTopBar('chartOportunidadCiudad', ops, r => r.ciudad, 15, '#8B5CF6');
+    ChartsModule.renderTopBarV('chartOportunidadPunto', ops, r => r.puntoVenta, 15, '#F97316');
   }
 
   function renderKPIsIndicadores(rows) {
     if (!els.kpiGridIndicadores) return;
-    const { current, previous } = getComparisonSets(rows);
-    const cur = kpiStats(rows);
-    const prevStats = previous ? kpiStats(previous) : null;
-    const curForVar = previous ? kpiStats(current) : null;
-    const v = (key) => (prevStats && curForVar) ? Utils.variation(curForVar[key], prevStats[key]) : null;
-
-    const cards = [
-      kpiCard('Total Servicios', Utils.formatNumber(cur.total), v('total'), true, null, '📦'),
-      kpiCard('% Entregados', Utils.formatPct(cur.entregadosPct), v('entregadosPct'), true, Utils.semaforo(cur.entregadosPct, KPI_THRESHOLDS.cumplimiento), '✅'),
-      kpiCard('% Cerrados con Novedad', Utils.formatPct(cur.novedadesPct), v('novedadesPct'), false, null, '⚠️'),
-      kpiCard('Tiempo Creación / Alistamiento', Utils.minutesToHHMM(cur.tiempoCreacionProm), v('tiempoCreacionProm'), false, null, '🕐'),
-      kpiCard('Tiempo Aceptación / Entrega', Utils.minutesToHHMM(cur.tiempoAceptacionProm), v('tiempoAceptacionProm'), false, null, '⏱')
-    ];
-    els.kpiGridIndicadores.innerHTML = cards.join('');
+    els.kpiGridIndicadores.innerHTML = buildConsolidadoCards(rows).join('');
   }
 
   /* ================= Resumen ejecutivo (Inicio) ================= */
   function timeStats(rows, field) {
-    const vals = rows.map(r => r[field]).filter(v => v !== null && v !== undefined);
-    if (!vals.length) return { avg: null, min: null, max: null };
-    return {
-      avg: vals.reduce((a, b) => a + b, 0) / vals.length,
-      min: Math.min(...vals),
-      max: Math.max(...vals)
-    };
+    let sum = 0, c = 0, mn = Infinity, mx = -Infinity;
+    for (let i = 0; i < rows.length; i++) {
+      const v = rows[i][field];
+      if (v === null || v === undefined || isNaN(v)) continue;
+      sum += v; c++; if (v < mn) mn = v; if (v > mx) mx = v;
+    }
+    if (!c) return { avg: null, min: null, max: null, n: 0 };
+    return { avg: sum / c, min: mn, max: mx, n: c };
+  }
+
+  function renderInicioResumen(rows) {
+    const total = rows.length;
+    const set = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+    const n = Utils.formatNumber;
+    const countBy = (arr, fn) => { const m = new Map(); arr.forEach(r => { const k = fn(r); if (k && k !== 'Sin dato') m.set(k, (m.get(k) || 0) + 1); }); return Array.from(m.entries()).sort((a, b) => b[1] - a[1]); };
+    const row = (label, val) => `<div class="summary-row"><span>${label}</span><b>${val}</b></div>`;
+    const empty = '<div class="summary-empty">Sin datos para los filtros seleccionados</div>';
+    if (!total) { ['inicioVolumen', 'inicioEfectividad', 'inicioNovedades', 'inicioTiempos'].forEach(id => set(id, empty)); return; }
+    const big = (v, sub) => `<div class="summary-big">${v} <span>${sub}</span></div>`;
+    const pct = (x) => Utils.formatPct((x / total) * 100);
+
+    // Volumen
+    const topCiudad = countBy(rows, r => r.ciudad)[0], topTipo = countBy(rows, r => r.tipoServicio)[0], topPv = countBy(rows, r => r.puntoVenta)[0];
+    set('inicioVolumen', big(n(total), 'servicios en el periodo') +
+      (topCiudad ? row('Ciudad con más servicios', `${topCiudad[0]} · ${n(topCiudad[1])}`) : '') +
+      (topTipo ? row('Tipo de servicio principal', `${topTipo[0]} · ${n(topTipo[1])}`) : '') +
+      (topPv ? row('Punto de venta principal', `${topPv[0]} · ${n(topPv[1])}`) : ''));
+
+    // Efectividad
+    const efectivos = rows.filter(r => r.estado === 'EFECTIVO').length;
+    const efC = new Map();
+    rows.forEach(r => { if (!r.ciudad || r.ciudad === 'Sin dato') return; const e = efC.get(r.ciudad) || { t: 0, e: 0 }; e.t++; if (r.estado === 'EFECTIVO') e.e++; efC.set(r.ciudad, e); });
+    const efList = Array.from(efC.entries()).filter(([, v]) => v.t >= 3).map(([k, v]) => [k, (v.e / v.t) * 100]).sort((a, b) => b[1] - a[1]);
+    set('inicioEfectividad', big(pct(efectivos), `entregados (${n(efectivos)} de ${n(total)})`) +
+      (efList.length ? row('Mejor ciudad', `${efList[0][0]} · ${Utils.formatPct(efList[0][1])}`) : '') +
+      (efList.length > 1 ? row('Menor efectividad', `${efList[efList.length - 1][0]} · ${Utils.formatPct(efList[efList.length - 1][1])}`) : ''));
+
+    // Novedades
+    const nov = rows.filter(r => r.estado === 'NOVEDAD'), ops = rows.filter(r => r.estado === 'OPORTUNIDAD');
+    const topMotivo = countBy(nov, r => r.novedadDetalle)[0], topCiudadNov = countBy(nov, r => r.ciudad)[0];
+    set('inicioNovedades', big(`${n(nov.length)} · ${pct(nov.length)}`, 'cerrados con novedad') +
+      row('Oportunidad de entrega', `${n(ops.length)} · ${pct(ops.length)}`) +
+      (topMotivo ? row('Novedad más frecuente', `${topMotivo[0]} · ${n(topMotivo[1])}`) : '') +
+      (topCiudadNov ? row('Ciudad con más novedades', `${topCiudadNov[0]} · ${n(topCiudadNov[1])}`) : ''));
+
+    // Tiempos
+    const sc = timeStats(rows, 'tiempoCreacion'), sa = timeStats(rows, 'tiempoAceptacion');
+    const conSla = rows.filter(r => r.dentroSla !== null && r.dentroSla !== undefined);
+    const dentro = conSla.filter(r => r.dentroSla).length;
+    const tC = new Map();
+    rows.forEach(r => { if (!r.ciudad || r.ciudad === 'Sin dato' || r.tiempoAceptacion === null || r.tiempoAceptacion === undefined) return; const e = tC.get(r.ciudad) || { s: 0, c: 0 }; e.s += r.tiempoAceptacion; e.c++; tC.set(r.ciudad, e); });
+    const tList = Array.from(tC.entries()).filter(([, v]) => v.c >= 3).map(([k, v]) => [k, v.s / v.c]).sort((a, b) => b[1] - a[1]);
+    set('inicioTiempos', big(Utils.minutesToHHMM(sa.avg), 'tiempo promedio de entrega') +
+      row('Tiempo promedio de alistamiento', Utils.minutesToHHMM(sc.avg)) +
+      (conSla.length ? row('Entregas dentro de SLA', `${Utils.formatPct((dentro / conSla.length) * 100)}`) : '') +
+      (tList.length ? row('Ciudad con mayor tiempo de entrega', `${tList[0][0]} · ${Utils.minutesToHHMM(tList[0][1])}`) : ''));
   }
 
   function renderInicioResumenNovedades(rows) {
@@ -2930,19 +3052,25 @@ const MapModule = (() => {
     if (!alist || !entrega) return;
     const sc = timeStats(rows, 'tiempoCreacion');
     const sa = timeStats(rows, 'tiempoAceptacion');
-    const row = (label, v) => `<div class="sla-stat-row"><span>${label}</span><b>${v === null ? '—' : Utils.minutesToHHMM(v)}</b></div>`;
-    alist.innerHTML = row('Promedio', sc.avg) + row('Mínimo', sc.min) + row('Máximo', sc.max);
-    entrega.innerHTML = row('Promedio', sa.avg) + row('Mínimo', sa.min) + row('Máximo', sa.max);
+    const fmt = (v) => (v === null || v === undefined) ? '—' : Utils.minutesToHHMM(v);
+    const row = (label, v) => `<div class="sla-stat-row"><span>${label}</span><b>${v}</b></div>`;
+    const total = rows.length || 1;
+    const block = (st) => row('Promedio', fmt(st.avg)) + row('Mínimo', fmt(st.min)) + row('Máximo', fmt(st.max)) +
+      row('Servicios con dato', `${Utils.formatNumber(st.n)} (${Utils.formatPct((st.n / total) * 100)})`);
+    alist.innerHTML = block(sc);
+    entrega.innerHTML = block(sa) + (() => {
+      const conSla = rows.filter(r => r.dentroSla !== null && r.dentroSla !== undefined);
+      const dentro = conSla.filter(r => r.dentroSla).length;
+      return conSla.length ? row(`Dentro de SLA (≤ ${DataLayer.CONFIG ? DataLayer.CONFIG.SLA_META_DEFAULT : 60} min)`, `${Utils.formatNumber(dentro)} (${Utils.formatPct((dentro / conSla.length) * 100)})`) : '';
+    })();
   }
 
   /* ================= Gráficos ================= */
   function renderCharts(rows, pcRows) {
     // Inicio — resumen condensado
-    ChartsModule.renderTopBar('chartInicioVolumenCiudad', rows, r => r.ciudad, 8, '#2563EB');
-    ChartsModule.renderRateBarH('chartInicioEfectividadCiudad', rows, r => r.ciudad, r => r.estado === 'EFECTIVO', 8, '#16A34A', 3);
 
     // Indicadores — resultados
-    ChartsModule.renderTopBar('chartTopCiudadesVolumen', rows, r => r.ciudad, 15, '#2563EB');
+    ChartsModule.renderTopBarV('chartTopCiudadesVolumen', rows, r => r.ciudad, 15, '#2563EB');
     ChartsModule.renderRateBarH('chartEfectividadCiudad', rows, r => r.ciudad, r => r.estado === 'EFECTIVO', 15, '#16A34A', 3);
     ChartsModule.renderDoughnut('chartTipoServicioTorta', rows, r => r.tipoServicio, 10);
     ChartsModule.renderRateBarH('chartTipoServicioEfectividad', rows, r => r.tipoServicio, r => r.estado === 'EFECTIVO', 10, '#16A34A', 3);
@@ -2959,11 +3087,9 @@ const MapModule = (() => {
     // Operación — distribución operacional (dónde y cómo)
     ChartsModule.renderTopBar('chartByCity', rows, r => r.ciudad, 15, '#2563EB');
     ChartsModule.renderDoughnut('chartByChannelType', rows, r => r.tipoCanal);
-    ChartsModule.renderTopBar('chartOperacionCenLog', rows, r => r.cenLog, 15, '#8B5CF6');
     ChartsModule.renderTopBar('chartOperacionTipoServicio', rows, r => r.tipoServicio, 12, '#0EA5E9');
     ChartsModule.renderTopBar('chartOperacionPuntoVenta', rows, r => r.puntoVenta, 15, '#2563EB');
     ChartsModule.renderTopBar('chartByMunicipality', rows, r => r.municipio, 15, '#0EA5E9');
-    ChartsModule.renderByHour(rows);
     ChartsModule.renderByMonth(rows);
     ChartsModule.renderByDay(rows);
 
