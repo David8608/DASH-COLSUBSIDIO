@@ -1047,6 +1047,8 @@ const DataLayer = (() => {
     percapitaRows: [],  // filas hoja Percápita
     lastUpdated: null,
     gids: { hoja1: null, hoja2: null, hoja3: null, percapita: null },
+    lastGood: {},       // última lectura correcta por hoja (se conserva si una descarga posterior falla)
+    failedSheets: [],   // hojas que no se pudieron leer en la última carga
     ready: false,
     error: null,
     diagnostics: { fieldMaps: {}, headers: {}, estadoCounts: {}, tiempoDescartados: 0, rowCounts: {}, coordSamples: { hoja1: [], hoja2: [], hoja3: [], percapita: [] }, fechaFiltroSample: { hoja1: [], hoja2: [], hoja3: [], percapita: [] } }
@@ -1097,7 +1099,8 @@ const DataLayer = (() => {
   function fetchSheetCSV(gid) {
     const p = new Promise((resolve, reject) => {
       if (!gid && gid !== 0) return resolve({ meta: {}, data: [] });
-      Papa.parse(csvUrl(gid), {
+      // _=timestamp evita respuestas viejas/parciales en caché del navegador o de Google
+      Papa.parse(csvUrl(gid) + '&_=' + Date.now(), {
         download: true,
         header: true,
         skipEmptyLines: true,
@@ -1106,7 +1109,31 @@ const DataLayer = (() => {
         error: err => reject(err)
       });
     });
-    return withTimeout(p, 20000, `descarga de hoja (gid=${gid})`);
+    return withTimeout(p, 40000, `descarga de hoja (gid=${gid})`);
+  }
+
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+  /* Descarga una hoja con reintentos. Distingue "falló" de "está vacía":
+     - un fallo de red/tiempo agotado se reintenta (hasta 4 veces, con espera creciente)
+     - si una hoja que antes traía N filas ahora trae menos del 90%, se trata como lectura incompleta y se reintenta
+     - una hoja vacía se confirma con un segundo intento antes de darla por vacía */
+  async function fetchSheetReliable(tag, gid) {
+    if (!gid && gid !== 0) return { ok: true, res: { meta: {}, data: [] } };
+    const prev = state.lastGood[tag];
+    let best = null, lastErr = null;
+    for (let attempt = 1; attempt <= 4; attempt++) {
+      try {
+        const res = await fetchSheetCSV(gid);
+        const n = (res.data || []).length;
+        if (!best || n > best.data.length) best = res;
+        const incompleta = prev && prev.data.length > 0 && n < prev.data.length * 0.9;
+        if (!incompleta && (n > 0 || attempt >= 2)) return { ok: true, res };
+      } catch (e) { lastErr = e; console.warn(`Reintento ${attempt}/4 de ${tag}:`, e && e.message); }
+      await sleep(900 * attempt);
+    }
+    if (best) return { ok: true, res: best };
+    return { ok: false, error: lastErr };
   }
 
   /* ---------- Mapeo de columnas ----------
@@ -1440,16 +1467,31 @@ const DataLayer = (() => {
   }
 
   /* ---------- Carga completa ---------- */
-  async function loadAll() {
+  let loadPromise = null;
+  function loadAll() {
+    if (loadPromise) return loadPromise; // evita cargas simultáneas (auto-refresh + reintento)
+    loadPromise = loadAllInner().finally(() => { loadPromise = null; });
+    return loadPromise;
+  }
+  async function loadAllInner() {
     state.diagnostics.estadoCounts = {};
     state.diagnostics.tiempoDescartados = 0;
     await autoDetectGids();
-    const [h1, h2, h3, pc] = await Promise.all([
-      fetchSheetCSV(state.gids.hoja1).catch(() => ({ data: [] })),
-      fetchSheetCSV(state.gids.hoja2).catch(() => ({ data: [] })),
-      fetchSheetCSV(state.gids.hoja3).catch(() => ({ data: [] })),
-      fetchSheetCSV(state.gids.percapita).catch(() => ({ data: [] }))
-    ]);
+    const tags = ['hoja1', 'hoja2', 'hoja3', 'percapita'];
+    const results = await Promise.all(tags.map(t => fetchSheetReliable(t, state.gids[t])));
+    const failed = [];
+    const parsedBy = {};
+    results.forEach((r, i) => {
+      const tag = tags[i];
+      if (r.ok) { parsedBy[tag] = r.res; state.lastGood[tag] = r.res; }
+      else {
+        failed.push(tag);
+        // si falló, se conserva la última lectura buena de esa hoja en vez de dejarla vacía
+        parsedBy[tag] = state.lastGood[tag] || { meta: {}, data: [] };
+      }
+    });
+    state.failedSheets = failed;
+    const h1 = parsedBy.hoja1, h2 = parsedBy.hoja2, h3 = parsedBy.hoja3, pc = parsedBy.percapita;
 
     let rows = [
       ...normalizeRows(h1, 'hoja1'),
@@ -1465,7 +1507,7 @@ const DataLayer = (() => {
     state.error = (rows.length === 0) ? 'NO_DATA' : null;
 
     const CACHE_ROW_LIMIT = 15000; // por encima de esto, JSON.stringify + localStorage casi siempre supera la cuota del navegador y falla sin avisar — mejor no perder tiempo intentándolo
-    if (state.rawRows.length + state.percapitaRows.length <= CACHE_ROW_LIMIT) {
+    if (state.failedSheets.length === 0 && state.rawRows.length + state.percapitaRows.length <= CACHE_ROW_LIMIT) {
       Utils.lsSet('dashboard_cache_v1', { rows: state.rawRows, percapita: state.percapitaRows, ts: state.lastUpdated });
     } else {
       console.info(`Dataset grande (${state.rawRows.length} filas): se omite la caché local para no perder tiempo serializando datos que igual no caben en localStorage.`);
@@ -2478,6 +2520,28 @@ const MapModule = (() => {
     });
   });
 
+  let filtersReady = false;
+  /* Reintento automático cuando alguna hoja no se pudo leer: evita tener que refrescar la página a mano */
+  function scheduleRetry(attempt) {
+    if (attempt > 8) { setStatus('error', 'No se pudo leer toda la información de Google Sheets. Recarga la página en unos minutos.'); return; }
+    setTimeout(async () => {
+      showLoadingOverlay('REINTENTANDO CARGA');
+      try {
+        await DataLayer.loadAll();
+        const st = DataLayer.getState();
+        safe('filtros (reintento)', () => { if (!filtersReady) { FiltersModule.init(st.rawRows, els.filtersBar, onFiltersChanged); filtersReady = true; } else FiltersModule.updateData(st.rawRows); });
+        safe('render (reintento)', () => renderAll());
+        hideLoadingOverlay();
+        if (st.failedSheets.length) { setStatus('error', `No se pudo leer completa: ${st.failedSheets.join(', ')}. Reintentando automáticamente...`); scheduleRetry(attempt + 1); }
+        else { setStatus('ok'); }
+      } catch (e) {
+        hideLoadingOverlay();
+        console.error('Fallo en reintento de carga:', e);
+        scheduleRetry(attempt + 1);
+      }
+    }, 8000);
+  }
+
   async function init() {
     cacheEls();
     showLoadingOverlay('CARGANDO DATOS');
@@ -2500,7 +2564,7 @@ const MapModule = (() => {
     try {
       await Promise.race([
         DataLayer.loadAll(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT_GLOBAL')), 30000))
+        new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT_GLOBAL')), 170000))
       ]);
       state = DataLayer.getState();
     } catch (e) {
@@ -2508,9 +2572,10 @@ const MapModule = (() => {
       hideLoadingOverlay();
       console.error('Fallo al descargar/parsear las hojas de Google Sheets:', e);
       const timedOut = e && e.message && e.message.includes('TIMEOUT');
-      setStatus('error', timedOut
-        ? 'Google Sheets está tardando demasiado en responder (más de 30s). Verifica que el Sheet siga publicado y que los GID en js/data.js sean correctos.'
-        : 'Error al conectar con Google Sheets. Revisa tu conexión a internet.');
+      setStatus('error', (timedOut
+        ? 'Google Sheets está tardando demasiado en responder.'
+        : 'Error al conectar con Google Sheets.') + ' Reintentando automáticamente...');
+      scheduleRetry(1);
       return;
     }
     clearTimeout(slowHint);
@@ -2539,8 +2604,12 @@ const MapModule = (() => {
       }
     }
 
-    safe('inicialización de filtros', () => FiltersModule.init(state.rawRows, els.filtersBar, onFiltersChanged));
+    safe('inicialización de filtros', () => { FiltersModule.init(state.rawRows, els.filtersBar, onFiltersChanged); filtersReady = true; });
     safe('render principal', () => renderAll());
+    if (state.failedSheets && state.failedSheets.length) {
+      setStatus('error', `No se pudo leer completa: ${state.failedSheets.join(', ')}. Reintentando automáticamente...`);
+      scheduleRetry(1);
+    }
     safe('auto-actualización', () => DataLayer.startAutoRefresh((newState) => {
       safe('actualización de filtros', () => FiltersModule.updateData(newState.rawRows));
       safe('render principal (auto-refresh)', () => renderAll());
