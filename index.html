@@ -622,7 +622,7 @@ tbody tr:hover { background: var(--grey-50); }
         <div class="card card--full"><h3>% Cancelaciones por mes</h3><div class="chart-box"><canvas id="chartCancelaciones"></canvas></div></div>
       </div>
       <h2 class="section-title" style="font-size:16px;margin:26px 0 10px;">Oportunidad de Entrega</h2>
-      <p class="chart-subtitle" style="margin-bottom:10px;">Entregas repetidas (columna B) entre los cerrados con novedad. Cada entrega repetida cuenta una sola vez y deja de contarse como novedad.</p>
+      <p class="chart-subtitle" style="margin-bottom:10px;">Guías (columna B) que salieron a una segunda ruta y siguen cerradas con novedad. Todas sus filas cuentan como oportunidad y dejan de contarse como novedad.</p>
       <div id="oportunidadBox" class="kpi-grid"></div>
       <div class="chart-grid chart-grid--2" style="margin-bottom:18px;">
         <div class="card"><h3>Oportunidad de entrega por ciudad</h3><div class="chart-box"><canvas id="chartOportunidadCiudad"></canvas></div></div>
@@ -1497,10 +1497,9 @@ const DataLayer = (() => {
   }
 
   /* Oportunidad de entrega: entre los servicios "cerrados con novedad", un número de entrega (columna B)
-     que aparece en más de una fila es un duplicado. Cada entrega repetida cuenta UNA sola vez como
-     oportunidad (fila representante, estado OPORTUNIDAD). Las demás filas repetidas NO se eliminan:
-     siguen en el total pero con estado REPETIDA (no cuentan ni como novedad ni como oportunidad),
-     de modo que Total = filas de las hojas = Entregados + Oportunidad + Novedad + Repetidas + otros. */
+     que aparece en más de una fila es una guía que salió a una segunda ruta y no se entregó con éxito.
+     TODAS las filas de esa guía pasan a estado OPORTUNIDAD (dejan de contarse como novedad), de modo que
+     Total = Entregados + Oportunidad + Cerrados con novedad (+ otros estados, si los hubiera). */
   function markDuplicadosEntrega(rows) {
     const groups = new Map();
     rows.forEach(r => {
@@ -1509,20 +1508,16 @@ const DataLayer = (() => {
         if (g) g.push(r); else groups.set(r.numEntrega, [r]);
       }
     });
-    let oportunidades = 0, repetidas = 0;
+    let guias = 0, filas = 0;
     groups.forEach(g => {
       if (g.length < 2) return;
-      const rep = g[0];
-      rep.estado = 'OPORTUNIDAD'; rep.esNovedadReal = false; rep.esDuplicado = true;
-      rep.novedadDetalle = 'Sin dato'; rep.repeticiones = g.length;
-      oportunidades++;
-      for (let i = 1; i < g.length; i++) {
-        const x = g[i];
-        x.estado = 'REPETIDA'; x.esNovedadReal = false; x.esDuplicado = true; x.novedadDetalle = 'Sin dato';
-        repetidas++;
-      }
+      guias++; filas += g.length;
+      g.forEach(x => {
+        x.estado = 'OPORTUNIDAD'; x.esNovedadReal = false; x.esDuplicado = true;
+        x.novedadDetalle = 'Sin dato'; x.repeticiones = g.length;
+      });
     });
-    state.diagnostics.duplicados = { oportunidades, filasRepetidas: repetidas };
+    state.diagnostics.duplicados = { guias, filas };
     return rows;
   }
 
@@ -2905,16 +2900,31 @@ const MapModule = (() => {
     });
     const leidas = ['hoja1', 'hoja2', 'hoja3'].reduce((a, t) => a + (diag.rowCounts[t] || 0), 0);
     const vacias = ['hoja1', 'hoja2', 'hoja3'].reduce((a, t) => a + ((diag.descVacias && diag.descVacias[t]) || 0), 0);
-    const repetidas = (diag.duplicados && diag.duplicados.filasRepetidas) || 0;
     const mostradas = DataLayer.getState().rawRows.length;
     lines.push('── CONCILIACIÓN DE FILAS (hojas de servicios) ──');
     lines.push(`Filas leídas en las hojas 1+2+3: ${leidas}`);
     lines.push(`(−) Filas totalmente vacías (sin ciudad, fecha ni estado): ${vacias}`);
     lines.push(`(=) Servicios que muestra el dashboard (sin filtros): ${mostradas}`);
     lines.push(`Diferencia sin explicar: ${leidas - vacias - mostradas}`);
-    lines.push(`De ellos, filas repetidas de una entrega con novedad (no se eliminan; 1 por entrega cuenta como oportunidad): ${repetidas}`);
     lines.push(`Errores de lectura del CSV por hoja: ${['hoja1', 'hoja2', 'hoja3'].map(t => t + '=' + ((diag.parseErrors && diag.parseErrors[t]) || 0)).join(' · ')}`);
-    lines.push(`Entregas con novedad repetidas (oportunidad): ${(diag.duplicados && diag.duplicados.oportunidades) || 0}`);
+    lines.push(`Guías con novedad repetida (oportunidad): ${(diag.duplicados && diag.duplicados.guias) || 0} guías · ${(diag.duplicados && diag.duplicados.filas) || 0} filas`);
+    lines.push('');
+    lines.push('── CONCILIACIÓN POR MES (Total = Entregados + Oportunidad + Novedad + Otros) ──');
+    const porMes = new Map();
+    DataLayer.getState().rawRows.forEach(r => {
+      const k = r.mes || 0;
+      const m = porMes.get(k) || { t: 0, e: 0, o: 0, n: 0, x: 0 };
+      m.t++;
+      if (r.estado === 'EFECTIVO') m.e++; else if (r.estado === 'OPORTUNIDAD') m.o++; else if (r.estado === 'NOVEDAD') m.n++; else m.x++;
+      porMes.set(k, m);
+    });
+    const pad = (v, w) => String(v).padStart(w, ' ');
+    lines.push(`${'Mes'.padEnd(11)}${pad('Total', 9)}${pad('Entreg.', 9)}${pad('Oport.', 8)}${pad('Novedad', 9)}${pad('Otros', 7)}  Cuadra`);
+    Array.from(porMes.entries()).sort((a, b) => a[0] - b[0]).forEach(([k, m]) => {
+      const ok = m.x === 0 && m.t === m.e + m.o + m.n;
+      lines.push(`${(k ? Utils.MESES[k - 1] : 'Sin mes').padEnd(11)}${pad(m.t, 9)}${pad(m.e, 9)}${pad(m.o, 8)}${pad(m.n, 9)}${pad(m.x, 7)}  ${ok ? 'sí' : 'NO (hay servicios con otro estado)'}`);
+    });
+    lines.push('("Otros" = servicios con un estado distinto a entregado / cerrado con novedad, p. ej. vacío o cancelado)');
     lines.push('');
     lines.push('── VALORES DE "ESTADO" ENCONTRADOS (crudo → cantidad) ──');
     const estadoEntries = Object.entries(diag.estadoCounts).sort((a, b) => b[1] - a[1]).slice(0, 20);
@@ -2972,7 +2982,8 @@ const MapModule = (() => {
     const cancelados = rows.filter(r => r.estado === 'CANCELADO').length;
     const novedades = rows.filter(r => r.estado === 'NOVEDAD').length;
     const oportunidades = rows.filter(r => r.estado === 'OPORTUNIDAD').length;
-    const repetidas = rows.filter(r => r.estado === 'REPETIDA').length;
+    const guiasOportunidad = new Set(rows.filter(r => r.estado === 'OPORTUNIDAD' && r.numEntrega).map(r => r.numEntrega)).size;
+    const otros = total - efectivos - oportunidades - novedades;
     const tiemposCreacion = rows.map(r => r.tiempoCreacion).filter(v => v !== null && v !== undefined);
     const tiempoCreacionProm = tiemposCreacion.length ? tiemposCreacion.reduce((a, b) => a + b, 0) / tiemposCreacion.length : null;
     const tiemposAceptacion = rows.map(r => r.tiempoAceptacion).filter(v => v !== null && v !== undefined);
@@ -2983,7 +2994,7 @@ const MapModule = (() => {
     const municipios = new Set(rows.map(r => r.municipio).filter(c => c && c !== 'Sin dato')).size;
     const cumplimiento = total ? (efectivos / total) * 100 : null;
     return {
-      total, efectivos, cancelados, novedades, oportunidades, repetidas, tiemposCreacionN: tiemposCreacion.length, tiemposAceptacionN: tiemposAceptacion.length, tiempoCreacionProm, tiempoAceptacionProm, ticketProm, ciudades, municipios, cumplimiento,
+      total, efectivos, cancelados, novedades, oportunidades, guiasOportunidad, otros, tiemposCreacionN: tiemposCreacion.length, tiemposAceptacionN: tiemposAceptacion.length, tiempoCreacionProm, tiempoAceptacionProm, ticketProm, ciudades, municipios, cumplimiento,
       cancelacionesPct: total ? (cancelados / total) * 100 : null,
       novedadesPct: total ? (novedades / total) * 100 : null,
       oportunidadPct: total ? (oportunidades / total) * 100 : null,
@@ -3022,9 +3033,9 @@ const MapModule = (() => {
     const dentro = conSla.filter(r => r.dentroSla).length;
     const slaPct = conSla.length ? (dentro / conSla.length) * 100 : null;
     return [
-      kpiCard('Total Servicios', n(cur.total), v('total'), true, null, '📦', '100% de la base'),
+      kpiCard('Total Servicios', n(cur.total), v('total'), true, null, '📦', `= ${n(cur.efectivos)} entregados + ${n(cur.oportunidades)} oportunidad + ${n(cur.novedades)} novedad` + (cur.otros ? ` + ${n(cur.otros)} otros estados` : '')),
       kpiCard('Entregados', n(cur.efectivos), v('entregadosPct'), true, Utils.semaforo(cur.entregadosPct, KPI_THRESHOLDS.cumplimiento), '✅', `${Utils.formatPct(cur.entregadosPct)} del total`),
-      kpiCard('Oportunidad de Entrega', n(cur.oportunidades), v('oportunidadPct'), false, null, '🔁', `${Utils.formatPct(cur.oportunidadPct)} del total` + (cur.repetidas ? ` · +${n(cur.repetidas)} filas repetidas` : '')),
+      kpiCard('Oportunidad de Entrega', n(cur.oportunidades), v('oportunidadPct'), false, null, '🔁', `${Utils.formatPct(cur.oportunidadPct)} del total · ${n(cur.guiasOportunidad)} guías con 2.ª salida`),
       kpiCard('Cerrados con Novedad', n(cur.novedades), v('novedadesPct'), false, null, '⚠️', `${Utils.formatPct(cur.novedadesPct)} del total`),
       kpiCard('Tiempo de Alistamiento', Utils.minutesToHHMM(cur.tiempoCreacionProm), v('tiempoCreacionProm'), false, null, '🕐', `${n(cur.tiemposCreacionN)} servicios (${pctOf(cur.tiemposCreacionN)})`),
       kpiCard('Tiempo de Entrega', Utils.minutesToHHMM(cur.tiempoAceptacionProm), v('tiempoAceptacionProm'), false, null, '⏱', `${n(cur.tiemposAceptacionN)} servicios (${pctOf(cur.tiemposAceptacionN)})` + (slaPct !== null ? ` · ${Utils.formatPct(slaPct)} dentro de SLA` : ''))
@@ -3086,11 +3097,11 @@ const MapModule = (() => {
     const total = rows.length;
     const ops = rows.filter(r => r.estado === 'OPORTUNIDAD');
     const pct = total ? (ops.length / total) * 100 : null;
-    const filasRepetidas = ops.reduce((a, r) => a + (r.repeticiones || 1), 0);
+    const guias = new Set(ops.map(r => r.numEntrega).filter(Boolean)).size;
     box.innerHTML = [
       kpiCard('Oportunidad de Entrega', Utils.formatNumber(ops.length), null, false, null, '🔁', pct !== null ? `${Utils.formatPct(pct)} del total` : ''),
-      kpiCard('Filas repetidas en la hoja', Utils.formatNumber(filasRepetidas), null, false, null, '📑', 'se cuenta 1 por entrega'),
-      kpiCard('Promedio de repeticiones', ops.length ? (filasRepetidas / ops.length).toFixed(1) : '—', null, false, null, '🔢', 'filas por entrega repetida')
+      kpiCard('Guías distintas', Utils.formatNumber(guias), null, false, null, '🔢', 'números de entrega repetidos'),
+      kpiCard('Salidas por guía', guias ? (ops.length / guias).toFixed(1) : '—', null, false, null, '📑', 'promedio de filas por guía')
     ].join('');
     ChartsModule.renderTopBar('chartOportunidadCiudad', ops, r => r.ciudad, 15, '#014C85');
     ChartsModule.renderTopBarV('chartOportunidadPunto', ops, r => r.puntoVenta, 15, '#D9B200');
