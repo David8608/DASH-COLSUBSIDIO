@@ -6,6 +6,15 @@
 <title>Operación Colsubsidio NC</title>
 <meta name="description" content="Dashboard ejecutivo y operativo de última milla, conectado en vivo a Google Sheets.">
 
+<script>
+(function () {
+  try {
+    var t = localStorage.getItem('dash_theme');
+    if (t !== 'dark' && t !== 'light') t = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+    document.documentElement.setAttribute('data-theme', t);
+  } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+})();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
@@ -246,6 +255,26 @@ body.sidebar-collapsed .nav-item { justify-content: center; }
 .kpi-dot--neutral { background: var(--grey-300); }
 .kpi-value { font-family: var(--font-mono); font-size: 22px; font-weight: 700; color: var(--grey-900); line-height: 1.1; }
 .kpi-label { font-size: 12px; color: var(--grey-500); margin-top: 4px; font-weight: 600; }
+/* ================= MODO OSCURO ================= */
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --white: #121E30; --grey-50: #0B1424; --grey-100: #182640; --grey-200: #23344F; --grey-300: #38506F;
+  --grey-500: #97A8C0; --grey-600: #B4C2D6; --grey-700: #CFD9E6; --grey-900: #F1F5F9;
+  --blue-50: #10304F; --blue-500: #4FA3DC; --blue-600: #1B7FCB; --blue-700: #8CC4EE;
+  --green-50: #0F2A1D; --red-50: #2D1618; --amber-50: #2A2410;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.4); --shadow-md: 0 4px 16px rgba(0,0,0,.45); --shadow-lg: 0 12px 32px rgba(0,0,0,.55);
+}
+html[data-theme="dark"] .setup-banner { border-bottom-color: #4A3F12; color: #F3D77A; }
+html[data-theme="dark"] .setup-banner__msg a, html[data-theme="dark"] .setup-banner__close { color: #F3D77A; }
+html[data-theme="dark"] .setup-banner__msg code { background: #3A3210; }
+html[data-theme="dark"] .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(.92) contrast(.9); }
+html[data-theme="dark"] .leaflet-container { background: #0B1424; }
+html[data-theme="dark"] .topbar__logo, html[data-theme="dark"] .topbar__logo img { background: #fff; }
+html[data-theme="dark"] input, html[data-theme="dark"] select, html[data-theme="dark"] textarea { background: var(--white); color: var(--grey-900); border-color: var(--grey-300); }
+html[data-theme="dark"] .btn--ghost { color: var(--grey-700); }
+.theme-toggle .icon-sun { display: none; }
+html[data-theme="dark"] .theme-toggle .icon-sun { display: inline; }
+html[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
 .kpi-sub { font-size: 11.5px; color: var(--grey-600, #475569); margin-top: 4px; line-height: 1.35; }
 .kpi-var { display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; font-weight: 700; margin-top: 6px; }
 .kpi-var--good { color: var(--green-600); }
@@ -433,6 +462,10 @@ tbody tr:hover { background: var(--grey-50); }
   </div>
 
   <div class="topbar__actions">
+    <button id="btnTheme" class="btn btn--ghost theme-toggle" title="Cambiar entre modo claro y oscuro" aria-label="Cambiar modo claro/oscuro">
+      <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+      <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4.2" stroke="currentColor" stroke-width="1.7"/><path d="M12 2.5v2.2M12 19.3v2.2M2.5 12h2.2M19.3 12h2.2M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M18.7 5.3l-1.6 1.6M6.9 17.1l-1.6 1.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+    </button>
     <button id="btnExportExcel" class="btn btn--ghost" title="Exportar Excel">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" stroke="currentColor" stroke-width="1.6"/><path d="M14 2v6h6" stroke="currentColor" stroke-width="1.6"/></svg>
       Excel
@@ -662,19 +695,34 @@ tbody tr:hover { background: var(--grey-50); }
 
     <!-- ---------- PERCÁPITA ---------- -->
     <section id="section-percapita" class="section">
-      <h1 class="section-title">Percápita</h1>
-      <p class="chart-subtitle" style="margin-bottom:14px;">Servicios por mensajero, ticket y modelo (fijo / colaborativo) por ciudad y punto de venta — hoja Percápita</p>
+      <h1 class="section-title">Per cápita institucional</h1>
+      <p class="chart-subtitle" style="margin-bottom:14px;">Costo operativo por entrega — por punto, ciudad y mes (hoja Percápita)</p>
       <div style="margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
         <label for="pcModelo" style="font-size:13px;font-weight:600;">Modelo</label>
-        <select id="pcModelo" style="padding:7px 10px;border-radius:8px;border:1px solid #CBD5E1;"><option value="">Todos</option></select>
+        <select id="pcModelo" style="padding:7px 10px;border-radius:8px;border:1px solid var(--grey-300);background:var(--white);color:var(--grey-900);"><option value="">Todos</option></select>
       </div>
       <div id="pcKpiGrid" class="kpi-grid"></div>
       <div class="chart-grid chart-grid--2">
-        <div class="card"><h3>Percápita y ticket por mes</h3><div class="chart-box"><canvas id="chartPercapitaMonthly"></canvas></div></div>
-        <div class="card"><h3>Servicios por modelo</h3><div class="chart-box"><canvas id="chartPercapitaModelo"></canvas></div></div>
-        <div class="card"><h3>Percápita por ciudad</h3><div class="chart-box"><canvas id="chartPercapitaCity"></canvas></div></div>
-        <div class="card"><h3>Percápita por punto de venta (top 15)</h3><div class="chart-box"><canvas id="chartPercapitaFarmacia"></canvas></div></div>
-        <div class="card card--full"><h3>Servicios operados vs. servicios en Percápita</h3><div class="chart-box"><canvas id="chartPercapitaVsServicios"></canvas></div></div>
+        <div class="card"><h3>Per cápita por mes</h3><p class="chart-subtitle">Evolución del costo por entrega</p><div class="chart-box"><canvas id="chartPercapitaMonthly"></canvas></div></div>
+        <div class="card"><h3>Top 5 puntos — per cápita más alto</h3><p class="chart-subtitle">Puntos con mayor costo operativo por entrega</p><div class="chart-box"><canvas id="chartPercapitaTop5"></canvas></div></div>
+        <div class="card"><h3>Per cápita por punto</h3><p class="chart-subtitle">Ranking de puntos por costo promedio por entrega</p><div class="chart-box" style="height:460px;"><canvas id="chartPercapitaFarmacia"></canvas></div></div>
+        <div class="card"><h3>Costo total por ciudad</h3><p class="chart-subtitle">Distribución del costo operativo</p><div class="chart-box" style="height:460px;"><canvas id="chartPercapitaCity"></canvas></div></div>
+        <div class="card"><h3>Entregas por modelo</h3><div class="chart-box"><canvas id="chartPercapitaModelo"></canvas></div></div>
+        <div class="card"><h3>Servicios operados vs. entregas en Percápita</h3><div class="chart-box"><canvas id="chartPercapitaVsServicios"></canvas></div></div>
+
+        <div class="card card--full table-card">
+          <h3 style="padding:16px 18px 0;">Detalle por punto</h3>
+          <p id="pcTableInfo" class="chart-subtitle" style="padding:0 18px;"></p>
+          <div class="table-toolbar">
+            <input id="pcTableSearch" type="text" placeholder="Buscar punto, ciudad, mes o modelo...">
+          </div>
+          <div class="table-scroll">
+            <table id="pcTable">
+              <thead><tr><th>Punto</th><th>Ciudad</th><th>Mes</th><th>Modelo</th><th>Mensajeros</th><th>Entregas</th><th>Costo</th><th>Per cápita</th></tr></thead>
+              <tbody id="pcTableBody"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -1788,7 +1836,8 @@ const ChartsModule = (() => {
 
   try {
     Chart.defaults.font.family = "'Inter', -apple-system, sans-serif";
-    Chart.defaults.color = '#64748B';
+    Chart.defaults.color = themeIsDark() ? '#97A8C0' : '#64748B';
+    Chart.defaults.borderColor = themeIsDark() ? 'rgba(151,168,192,.16)' : 'rgba(0,0,0,.1)';
     Chart.defaults.plugins.legend.labels.usePointStyle = true;
     Chart.defaults.plugins.legend.labels.boxWidth = 8;
   } catch (e) { console.warn('No se pudo aplicar el tema por defecto a Chart.js', e); }
@@ -1802,7 +1851,7 @@ const ChartsModule = (() => {
         const ctx = chart.ctx;
         ctx.save();
         ctx.font = '600 10.5px ui-monospace, Menlo, monospace';
-        ctx.fillStyle = opts.color || '#334155';
+        ctx.fillStyle = opts.color || (themeIsDark() ? '#CFD9E6' : '#334155');
         const horizontal = chart.options.indexAxis === 'y';
         chart.data.datasets.forEach((ds, di) => {
           const meta = chart.getDatasetMeta(di);
@@ -1819,6 +1868,9 @@ const ChartsModule = (() => {
       }
     };
   }
+
+  function themeIsDark() { return document.documentElement.getAttribute('data-theme') === 'dark'; }
+  function surfaceColor() { return themeIsDark() ? '#121E30' : '#FFFFFF'; }
 
   function upsert(id, type, data, options) {
     try {
@@ -2160,7 +2212,7 @@ const ChartsModule = (() => {
     const top = topN(map, n);
     upsert(id, 'doughnut', {
       labels: top.map(t => t[0]),
-      datasets: [{ data: top.map(t => t[1]), backgroundColor: top.map((_, i) => Utils.colorAt(i)), borderWidth: 2, borderColor: '#fff' }]
+      datasets: [{ data: top.map(t => t[1]), backgroundColor: top.map((_, i) => Utils.colorAt(i)), borderWidth: 2, borderColor: surfaceColor() }]
     }, { plugins: { legend: { position: 'right' } }, cutout: '62%' });
   }
 
@@ -2212,78 +2264,84 @@ const ChartsModule = (() => {
     const fuera = withSla.length - dentro;
     upsert('chartSlaGauge', 'doughnut', {
       labels: ['Dentro SLA', 'Fuera SLA'],
-      datasets: [{ data: [dentro, fuera], backgroundColor: ['#16A34A', '#DC2626'], borderWidth: 2, borderColor: '#fff' }]
+      datasets: [{ data: [dentro, fuera], backgroundColor: ['#16A34A', '#DC2626'], borderWidth: 2, borderColor: surfaceColor() }]
     }, { plugins: { legend: { position: 'bottom' } }, cutout: '68%' });
   }
 
-  /* ---------- Percápita ---------- */
-  // Percápita = servicios por mensajero (suma de servicios / suma de mensajeros). Ticket = $ promedio por servicio ponderado por servicios.
+  /* ---------- Percápita ----------
+     Per cápita = costo por entrega (columna TICKET). Costo = per cápita × entregas.
+     Per cápita global = costo total / entregas con tarifa (ponderado, no promedio simple). */
   function pcAgg(rows) {
-    let serv = 0, mens = 0, tSum = 0, tServ = 0;
+    let entregas = 0, costo = 0, entregasConTarifa = 0, mens = 0;
     rows.forEach(r => {
-      if (r.servicios) serv += r.servicios;
+      if (r.servicios) entregas += r.servicios;
       if (r.mensajeros) mens += r.mensajeros;
-      if (r.ticket && r.servicios) { tSum += r.ticket * r.servicios; tServ += r.servicios; }
+      if (r.ticket && r.servicios) { costo += r.ticket * r.servicios; entregasConTarifa += r.servicios; }
     });
-    return { servicios: serv, mensajeros: mens, percapita: mens > 0 ? serv / mens : null, ticket: tServ > 0 ? tSum / tServ : null };
+    return { entregas, costo, mensajeros: mens, percapita: entregasConTarifa > 0 ? costo / entregasConTarifa : null };
   }
   function pcGroup(rows, keyFn) {
     const m = new Map();
     rows.forEach(r => { const k = keyFn(r); if (k === null || k === undefined || k === '' || k === 'Sin dato') return; if (!m.has(k)) m.set(k, []); m.get(k).push(r); });
     return m;
   }
+  const money = (v) => '$' + Math.round(v).toLocaleString('es-CO');
+  const moneyShort = (v) => v >= 1e6 ? '$' + (v / 1e6).toFixed(v >= 1e8 ? 0 : 1) + 'M' : v >= 1e3 ? '$' + Math.round(v / 1e3) + 'K' : '$' + Math.round(v);
+
+  // Per cápita por mes: línea con área
   function renderPercapitaMonthly(pcRows) {
     const g = pcGroup(pcRows, r => r.mes);
-    const labels = [], per = [], tick = [];
-    for (let m = 1; m <= 12; m++) if (g.has(m)) {
-      const a = pcAgg(g.get(m));
-      labels.push(Utils.MESES_ABR[m - 1]); per.push(a.percapita !== null ? Number(a.percapita.toFixed(1)) : null); tick.push(a.ticket !== null ? Math.round(a.ticket) : null);
-    }
-    upsert('chartPercapitaMonthly', 'bar', {
-      labels, datasets: [
-        { type: 'bar', label: 'Servicios por mensajero', data: per, backgroundColor: '#0166B0', yAxisID: 'y', borderRadius: 4 },
-        { type: 'line', label: 'Ticket promedio ($)', data: tick, borderColor: '#F9D009', backgroundColor: '#F9D009', yAxisID: 'y1', tension: .3 }
-      ]
-    }, { scales: { y: { position: 'left', title: { display: true, text: 'Servicios / mensajero' } }, y1: { position: 'right', title: { display: true, text: 'Ticket $' }, grid: { drawOnChartArea: false } } } });
+    const labels = [], vals = [];
+    for (let m = 1; m <= 12; m++) if (g.has(m)) { const a = pcAgg(g.get(m)); labels.push(Utils.MESES_ABR[m - 1]); vals.push(a.percapita !== null ? Math.round(a.percapita) : null); }
+    upsert('chartPercapitaMonthly', 'line', {
+      labels, datasets: [{ label: 'Per cápita', data: vals, borderColor: '#0166B0', backgroundColor: 'rgba(1,102,176,.14)', fill: true, tension: .35, pointRadius: 4, pointBackgroundColor: '#F9D009', pointBorderColor: '#0166B0', pointBorderWidth: 2 }]
+    }, { plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => 'Per cápita: ' + money(c.parsed.y) } } },
+      scales: { y: { ticks: { callback: v => money(v) } } } });
   }
-  function pcEntries(pcRows, keyFn, n) {
+  function pcEntries(pcRows, keyFn) {
     const g = pcGroup(pcRows, keyFn);
-    const entries = Array.from(g.entries()).map(([k, arr]) => [k, pcAgg(arr), arr]).filter(e => e[1].percapita !== null);
-    entries.sort((a, b) => b[1].percapita - a[1].percapita);
-    return entries.slice(0, n);
+    return Array.from(g.entries()).map(([k, arr]) => [k, pcAgg(arr), arr]).filter(e => e[1].percapita !== null);
   }
-  // Ciudades: columnas verticales, color degradado según el valor, con el número encima
-  function renderPercapitaByCity(pcRows) {
-    const top = pcEntries(pcRows, r => r.ciudad, 12);
-    const vals = top.map(t => Number(t[1].percapita.toFixed(1)));
-    const mx = Math.max(...vals, 1);
-    upsert('chartPercapitaCity', 'bar', {
+  // Top 5 puntos con per cápita más alto: columnas verticales
+  function renderPercapitaTop5(pcRows) {
+    const top = pcEntries(pcRows, r => r.puntoVenta).sort((a, b) => b[1].percapita - a[1].percapita).slice(0, 5);
+    upsert('chartPercapitaTop5', 'bar', {
       labels: top.map(t => t[0]),
-      datasets: [{ label: 'Servicios por mensajero', data: vals,
-        backgroundColor: vals.map(v => `rgba(1,102,176,${(0.35 + 0.65 * (v / mx)).toFixed(2)})`), borderRadius: 8, borderSkipped: false, maxBarThickness: 46 }]
-    }, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grace: '12%' }, x: { grid: { display: false } } }, layout: { padding: { top: 14 } },
-      _plugins: [valueLabelsPlugin(v => v.toFixed(1))] });
+      datasets: [{ label: 'Per cápita', data: top.map(t => Math.round(t[1].percapita)), backgroundColor: '#0166B0', borderRadius: 8, maxBarThickness: 54 }]
+    }, { plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => 'Per cápita: ' + money(c.parsed.y) } } },
+      scales: { y: { beginAtZero: true, grace: '12%', ticks: { callback: v => moneyShort(v) } }, x: { grid: { display: false }, ticks: { maxRotation: 30, minRotation: 0 } } },
+      layout: { padding: { top: 14 } }, _plugins: [valueLabelsPlugin(v => moneyShort(v))] });
   }
-  // Puntos de venta: barras horizontales delgadas, color según modelo (fijo / colaborativo)
+  // Per cápita por punto: ranking horizontal, colores de la paleta corporativa por modelo
   function renderPercapitaByFarmacia(pcRows) {
-    const top = pcEntries(pcRows, r => r.puntoVenta, 15);
+    const top = pcEntries(pcRows, r => r.puntoVenta).sort((a, b) => b[1].percapita - a[1].percapita).slice(0, 20);
     const palette = { FIJO: '#0166B0', COLABORATIVO: '#F9D009' };
     const modeloDe = (arr) => { const c = {}; arr.forEach(r => { c[r.modelo] = (c[r.modelo] || 0) + 1; }); return Object.entries(c).sort((a, b) => b[1] - a[1])[0][0]; };
     const modelos = top.map(t => modeloDe(t[2]));
     upsert('chartPercapitaFarmacia', 'bar', {
       labels: top.map(t => t[0]),
-      datasets: [{ label: 'Servicios por mensajero', data: top.map(t => Number(t[1].percapita.toFixed(1))),
-        backgroundColor: modelos.map(m => palette[m] || '#64748B'), borderRadius: 20, barThickness: 11 }]
-    }, { indexAxis: 'y', plugins: { legend: { display: false }, tooltip: { callbacks: { afterLabel: ctx => 'Modelo: ' + modelos[ctx.dataIndex] } } },
-      layout: { padding: { right: 38 } }, scales: { x: { grid: { display: false }, beginAtZero: true }, y: { grid: { display: false } } },
-      _plugins: [valueLabelsPlugin(v => v.toFixed(1))] });
+      datasets: [{ label: 'Per cápita', data: top.map(t => Math.round(t[1].percapita)), backgroundColor: modelos.map(m => palette[m] || '#64748B'), borderRadius: 8, barThickness: 16 }]
+    }, { indexAxis: 'y', plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => 'Per cápita: ' + money(c.parsed.x), afterLabel: c => 'Modelo: ' + modelos[c.dataIndex] } } },
+      layout: { padding: { right: 56 } }, scales: { x: { beginAtZero: true, grid: { display: false }, ticks: { callback: v => moneyShort(v) } }, y: { grid: { display: false } } },
+      _plugins: [valueLabelsPlugin(v => moneyShort(v))] });
+  }
+  // Costo total por ciudad: columnas verticales
+  function renderPercapitaByCity(pcRows) {
+    const ent = Array.from(pcGroup(pcRows, r => r.ciudad).entries()).map(([k, arr]) => [k, pcAgg(arr).costo]).filter(e => e[1] > 0).sort((a, b) => b[1] - a[1]).slice(0, 12);
+    const pal = ['#0166B0', '#F9D009', '#4FA3DC', '#014C85', '#D9B200', '#9CC7E8'];
+    upsert('chartPercapitaCity', 'bar', {
+      labels: ent.map(e => e[0]),
+      datasets: [{ label: 'Costo total', data: ent.map(e => Math.round(e[1])), backgroundColor: ent.map((_, i) => pal[i % pal.length]), borderRadius: 8, maxBarThickness: 56 }]
+    }, { plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => 'Costo total: ' + money(c.parsed.y) } } },
+      scales: { y: { beginAtZero: true, grace: '10%', ticks: { callback: v => moneyShort(v) } }, x: { grid: { display: false } } },
+      layout: { padding: { top: 14 } }, _plugins: [valueLabelsPlugin(v => moneyShort(v))] });
   }
   function renderPercapitaModelo(pcRows) {
     const g = pcGroup(pcRows, r => r.modelo);
     const entries = Array.from(g.entries()).map(([k, arr]) => [k, pcAgg(arr)]);
     upsert('chartPercapitaModelo', 'doughnut', {
       labels: entries.map(e => e[0]),
-      datasets: [{ data: entries.map(e => Number(e[1].servicios.toFixed(0))), backgroundColor: ['#0166B0', '#F9D009', '#16A34A', '#014C85'], borderWidth: 2, borderColor: '#fff' }]
+      datasets: [{ data: entries.map(e => Math.round(e[1].entregas)), backgroundColor: ['#0166B0', '#F9D009', '#4FA3DC', '#014C85'], borderWidth: 2, borderColor: surfaceColor() }]
     }, { plugins: { legend: { position: 'bottom' } }, cutout: '60%' });
   }
   function renderPercapitaVsServicios(pcRows, rows) {
@@ -2295,14 +2353,14 @@ const ChartsModule = (() => {
       if (svcByMonth.has(m) || g.has(m)) {
         labels.push(Utils.MESES_ABR[m - 1]);
         opVals.push(svcByMonth.get(m) || 0);
-        pcVals.push(g.has(m) ? Math.round(pcAgg(g.get(m)).servicios) : null);
+        pcVals.push(g.has(m) ? Math.round(pcAgg(g.get(m)).entregas) : null);
       }
     }
     upsert('chartPercapitaVsServicios', 'line', {
       labels,
       datasets: [
-        { label: 'Servicios operados (hojas)', data: opVals, borderColor: '#0166B0', backgroundColor: 'rgba(1,102,176,.15)', fill: true, tension: .35, pointRadius: 4, pointHoverRadius: 6 },
-        { label: 'Servicios en Percápita', data: pcVals, borderColor: '#F9D009', backgroundColor: 'rgba(249,208,9,.15)', fill: true, tension: .35, pointRadius: 4, borderDash: [6, 4], pointHoverRadius: 6 }
+        { label: 'Servicios operados (hojas)', data: opVals, borderColor: '#0166B0', backgroundColor: 'rgba(1,102,176,.15)', fill: true, tension: .35, pointRadius: 4 },
+        { label: 'Entregas en Percápita', data: pcVals, borderColor: '#D9B200', backgroundColor: 'rgba(249,208,9,.18)', fill: true, tension: .35, pointRadius: 4, borderDash: [6, 4] }
       ]
     }, { interaction: { mode: 'index', intersect: false }, scales: { y: { beginAtZero: true } } });
   }
@@ -2314,7 +2372,7 @@ const ChartsModule = (() => {
     renderRateBarH, renderPaginatedSingle, renderPaginatedGrouped,
     renderAvgTimeByMonth, renderAvgTimeTopBar, renderAvgTimeGrouped, renderTiempoTendenciaMensual,
     renderSlaDistribution, renderSlaGauge,
-    renderPercapitaMonthly, renderPercapitaByCity, renderPercapitaByFarmacia, renderPercapitaVsServicios, renderPercapitaModelo, pcAgg, valueLabelsPlugin,
+    renderPercapitaMonthly, renderPercapitaTop5, renderPercapitaByCity, renderPercapitaByFarmacia, renderPercapitaVsServicios, renderPercapitaModelo, pcAgg, valueLabelsPlugin,
     groupCount, topN, destroyAll, registry
   };
 })();
@@ -2394,6 +2452,15 @@ const MapModule = (() => {
       // Se crea SIN añadirla al mapa: el contenedor está oculto (tamaño 0) y leaflet.heat falla al dibujar; se monta en render() cuando ya es visible
       heatLayer = L.heatLayer([], { radius: 20, blur: 16, maxZoom: 11, max: 1.0, minOpacity: 0.4, gradient: { 0.2: '#3D8FCC', 0.4: '#22C55E', 0.6: '#FACC15', 0.8: '#D9B200', 1.0: '#DC2626' } });
     }
+    // leaflet.heat falla (canvas de ancho 0) si el mapa se redibuja mientras su pestaña está oculta: se ignora ese caso
+    if (heatLayer && typeof heatLayer._reset === 'function') {
+      const origReset = heatLayer._reset;
+      heatLayer._reset = function () {
+        const c = this._map && this._map.getContainer();
+        if (!c || !c.offsetWidth || !c.offsetHeight) return;
+        return origReset.apply(this, arguments);
+      };
+    }
     markersLayer = L.layerGroup().addTo(map);
   }
 
@@ -2453,17 +2520,8 @@ const MapModule = (() => {
       }
       const heatPoints = coordRows.map(r => [r.lat, r.lng, 0.35]);
       lastHeatPoints = heatPoints;
-      // El mapa se crea oculto (pestaña inactiva): se vuelve a montar la capa y se recalcula el tamaño cuando ya es visible
-      setTimeout(() => {
-        if (!map) return;
-        map.invalidateSize();
-        try { map.removeLayer(heatLayer); } catch (e) {}
-        heatLayer.setLatLngs(heatPoints);
-        heatLayer.addTo(map);
-        if (heatPoints.length && !fittedOnce) {
-          try { map.fitBounds(L.latLngBounds(heatPoints.map(p => [p[0], p[1]])), { padding: [30, 30], maxZoom: 9 }); fittedOnce = true; } catch (e) {}
-        }
-      }, 250);
+      // El mapa se crea oculto (pestaña inactiva): la capa de calor se monta solo cuando el contenedor ya es visible
+      setTimeout(applyHeat, 250);
     }
 
     const data = aggregateByPlace(rows, pcRows, useMunicipio);
@@ -2483,7 +2541,7 @@ const MapModule = (() => {
               <tr><td>Cumplimiento</td><td><b>${d.cumplimiento !== null ? Utils.formatPct(d.cumplimiento) : '—'}</b></td></tr>
               <tr><td>Tiempo entrega prom.</td><td><b>${Utils.minutesToHHMM(d.tiempoProm)}</b></td></tr>
               <tr><td>Cancelaciones</td><td><b>${Utils.formatNumber(d.cancelados)}</b></td></tr>
-              <tr><td>Servicios / mensajero</td><td><b>${d.percapita !== null ? d.percapita.toFixed(1) : '—'}</b></td></tr>
+              <tr><td>Per cápita</td><td><b>${d.percapita !== null ? Utils.formatCurrency(d.percapita) : '—'}</b></td></tr>
             </table>
           </div>`);
         marker.on('click', () => onMarkerClick(d.place, useMunicipio ? 'municipio' : 'ciudad'));
@@ -2498,7 +2556,19 @@ const MapModule = (() => {
     });
   }
 
-  function invalidateSize() { if (map) setTimeout(() => map.invalidateSize(), 200); }
+  function applyHeat() {
+    if (!map || !heatLayer) return;
+    const cont = map.getContainer();
+    if (!cont.offsetWidth || !cont.offsetHeight) return; // pestaña oculta: se reintenta cuando se abre
+    map.invalidateSize();
+    heatLayer.setLatLngs(lastHeatPoints);
+    if (!map.hasLayer(heatLayer)) heatLayer.addTo(map);
+    else if (typeof heatLayer.redraw === 'function') heatLayer.redraw();
+    if (lastHeatPoints.length && !fittedOnce) {
+      try { map.fitBounds(L.latLngBounds(lastHeatPoints.map(p => [p[0], p[1]])), { padding: [30, 30], maxZoom: 9, animate: false }); fittedOnce = true; } catch (e) {}
+    }
+  }
+  function invalidateSize() { if (map) setTimeout(applyHeat, 200); }
 
   return { init, render, invalidateSize };
 })();
@@ -2686,6 +2756,16 @@ const MapModule = (() => {
 
   function wireStaticUI() {
     document.getElementById('btnFullscreen').addEventListener('click', toggleFullscreen);
+    document.getElementById('btnTheme').addEventListener('click', () => {
+      const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      try { localStorage.setItem('dash_theme', next); } catch (e) {}
+      if (typeof Chart !== 'undefined') {
+        Chart.defaults.color = next === 'dark' ? '#97A8C0' : '#64748B';
+        Chart.defaults.borderColor = next === 'dark' ? 'rgba(151,168,192,.16)' : 'rgba(0,0,0,.1)';
+      }
+      if (DataLayer.getState().ready) safe('re-render por cambio de tema', () => renderAll());
+    });
     document.getElementById('btnExportPDF').addEventListener('click', () => window.print());
     document.getElementById('btnExportExcel').addEventListener('click', exportCurrentViewExcel);
     document.getElementById('btnResetFilters').addEventListener('click', () => FiltersModule.reset());
@@ -2952,6 +3032,7 @@ const MapModule = (() => {
   }
   function renderKPIs(rows) { els.kpiGrid.innerHTML = buildConsolidadoCards(rows).join(''); }
 
+  let pcTableSearch = '';
   function renderPercapitaKPIs(pcRows) {
     const box = document.getElementById('pcKpiGrid');
     if (!box) return;
@@ -2962,17 +3043,40 @@ const MapModule = (() => {
         const o = document.createElement('option'); o.value = m; o.textContent = m; sel.appendChild(o);
       });
       sel.addEventListener('change', () => { pcModeloFilter = sel.value; renderAll(); });
+      const inp = document.getElementById('pcTableSearch');
+      if (inp) inp.addEventListener('input', Utils.debounce(e => { pcTableSearch = e.target.value; renderPercapitaTable(getFilteredPercapita()); }, 150));
     }
     const a = ChartsModule.pcAgg(pcRows);
-    const meses = new Set(pcRows.map(r => r.mes).filter(Boolean)).size;
-    const pvs = new Set(pcRows.map(r => r.puntoVenta).filter(p => p && p !== 'Sin dato')).size;
+    // punto con per cápita más alto / más bajo (agregado por punto, ponderado)
+    const byPv = new Map();
+    pcRows.forEach(r => { if (!r.puntoVenta || r.puntoVenta === 'Sin dato') return; if (!byPv.has(r.puntoVenta)) byPv.set(r.puntoVenta, []); byPv.get(r.puntoVenta).push(r); });
+    const pvs = Array.from(byPv.entries()).map(([k, arr]) => [k, ChartsModule.pcAgg(arr).percapita]).filter(e => e[1] !== null).sort((x, y) => y[1] - x[1]);
+    const hi = pvs[0], lo = pvs[pvs.length - 1];
     box.innerHTML = [
-      kpiCard('Servicios (Percápita)', Utils.formatNumber(Math.round(a.servicios)), null, true, null, '📦'),
-      kpiCard('Mensajeros (FTE-mes)', Utils.formatNumber(Math.round(a.mensajeros)), null, true, null, '🛵'),
-      kpiCard('Servicios por mensajero', a.percapita !== null ? a.percapita.toFixed(1) : '—', null, true, null, '👥'),
-      kpiCard('Ticket promedio', a.ticket !== null ? Utils.formatCurrency(a.ticket) : '—', null, false, null, '💲'),
-      kpiCard('Puntos de venta', Utils.formatNumber(pvs) + ' · ' + meses + ' mes(es)', null, true, null, '🏪')
+      kpiCard('Per cápita global prom.', a.percapita !== null ? Utils.formatCurrency(a.percapita) : '—', null, false, null, '🪙', 'costo total ÷ entregas'),
+      kpiCard('PC más alto', hi ? Utils.formatCurrency(hi[1]) : '—', null, false, null, '🔺', hi ? hi[0] : ''),
+      kpiCard('PC más bajo', lo ? Utils.formatCurrency(lo[1]) : '—', null, true, null, '🔻', lo ? lo[0] : ''),
+      kpiCard('Costo total', Utils.formatCurrency(a.costo), null, false, null, '💲', 'per cápita × entregas'),
+      kpiCard('Total entregas', Utils.formatNumber(Math.round(a.entregas)), null, true, null, '📦', `${Utils.formatNumber(Math.round(a.mensajeros))} mensajeros (FTE-mes)`),
+      kpiCard('Puntos de operación', Utils.formatNumber(byPv.size), null, true, null, '🏪', `${new Set(pcRows.map(r => r.mes).filter(Boolean)).size} mes(es)`)
     ].join('');
+    renderPercapitaTable(pcRows);
+  }
+
+  function renderPercapitaTable(pcRows) {
+    const body = document.getElementById('pcTableBody');
+    const info = document.getElementById('pcTableInfo');
+    if (!body) return;
+    const q = Utils.normalize(pcTableSearch);
+    let list = pcRows.filter(r => r.ticket !== null && r.servicios);
+    if (q) list = list.filter(r => Utils.normalize([r.puntoVenta, r.ciudad, Utils.MESES_ABR[(r.mes || 1) - 1], r.modelo].join(' ')).includes(q));
+    list = list.slice().sort((x, y) => y.ticket - x.ticket);
+    if (info) info.textContent = `${Utils.formatNumber(list.length)} registros` + (list.length > 300 ? ' (se muestran los 300 con mayor per cápita)' : '');
+    body.innerHTML = list.slice(0, 300).map(r => `<tr>
+      <td>${r.puntoVenta}</td><td>${r.ciudad}</td><td>${r.mes ? Utils.MESES_ABR[r.mes - 1] : '—'}</td><td>${r.modelo}</td>
+      <td>${r.mensajeros !== null ? String(r.mensajeros).replace('.', ',') : '—'}</td>
+      <td>${Utils.formatNumber(r.servicios)}</td><td>${Utils.formatCurrency(r.ticket * r.servicios)}</td><td><b>${Utils.formatCurrency(r.ticket)}</b></td></tr>`).join('') ||
+      '<tr><td colspan="8" style="padding:18px;color:var(--grey-500);">Sin registros para los filtros seleccionados.</td></tr>';
   }
 
   /* Oportunidad de entrega: una unidad por número de entrega repetido (solo cerrados con novedad) */
@@ -3198,6 +3302,7 @@ const MapModule = (() => {
 
     // Percápita
     ChartsModule.renderPercapitaMonthly(pcRows);
+    ChartsModule.renderPercapitaTop5(pcRows);
     ChartsModule.renderPercapitaByCity(pcRows);
     ChartsModule.renderPercapitaByFarmacia(pcRows);
     ChartsModule.renderPercapitaVsServicios(pcRows, rows);
