@@ -15,15 +15,17 @@
    ========================================================================= */
 
 :root {
-  --blue-700: #1D4ED8;
-  --blue-600: #2563EB;
-  --blue-500: #3B82F6;
-  --blue-50:  #EFF6FF;
+  --blue-700: #014C85;
+  --blue-600: #0166B0;
+  --blue-500: #3D8FCC;
+  --blue-50:  #E8F2FA;
+  --brand-yellow: #F9D009;
+  --brand-yellow-dark: #D9B200;
   --green-600:#16A34A;
   --green-50: #F0FDF4;
   --red-600:  #DC2626;
   --red-50:   #FEF2F2;
-  --amber-500:#F59E0B;
+  --amber-500:#F9D009;
   --amber-50: #FFFBEB;
   --grey-900: #0F172A;
   --grey-700: #334155;
@@ -66,7 +68,7 @@ button { cursor: pointer; }
   display: flex; align-items: center; gap: 16px;
   padding: 0 20px;
   background: var(--white);
-  border-bottom: 1px solid var(--grey-200);
+  border-bottom: 3px solid var(--brand-yellow);
   position: sticky; top: 0; z-index: 40;
 }
 .icon-btn {
@@ -174,7 +176,7 @@ button { cursor: pointer; }
 .loading-overlay__bar { width: 260px; height: 3px; background: rgba(255,255,255,.15); border-radius: 999px; overflow: hidden; }
 .loading-overlay__bar-fill {
   height: 100%; width: 35%; border-radius: 999px;
-  background: linear-gradient(90deg, #F59E0B, #FCD34D);
+  background: linear-gradient(90deg, #F9D009, #FCD34D);
   animation: loadingSlide 1.3s ease-in-out infinite;
 }
 @keyframes loadingSlide {
@@ -212,7 +214,7 @@ button { cursor: pointer; }
 }
 .nav-item span:first-child { font-size: 16px; width: 20px; text-align: center; }
 .nav-item:hover { background: var(--grey-50); }
-.nav-item.active { background: var(--blue-50); color: var(--blue-700); }
+.nav-item.active { background: var(--blue-50); color: var(--blue-700); box-shadow: inset 3px 0 0 var(--brand-yellow); }
 .nav-badge {
   margin-left: auto; background: var(--red-600); color: var(--white); font-size: 10.5px; font-weight: 700;
   padding: 1px 7px; border-radius: 999px; display: none; align-items: center;
@@ -233,6 +235,7 @@ body.sidebar-collapsed .nav-item { justify-content: center; }
   background: var(--white); border: 1px solid var(--grey-200); border-radius: var(--radius-md);
   padding: 14px 16px; box-shadow: var(--shadow-sm); transition: box-shadow .15s, transform .15s;
 }
+.kpi-card { border-top: 3px solid var(--blue-600); }
 .kpi-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
 .kpi-card__top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .kpi-icon { font-size: 16px; }
@@ -945,7 +948,7 @@ const Utils = (() => {
   }
 
   /* ---------- Paleta de colores para gráficos ---------- */
-  const PALETTE = ['#2563EB', '#16A34A', '#0EA5E9', '#F59E0B', '#8B5CF6', '#EC4899', '#64748B', '#DC2626', '#14B8A6', '#F97316'];
+  const PALETTE = ['#0166B0', '#F9D009', '#4FA3DC', '#014C85', '#D9B200', '#9CC7E8', '#64748B', '#16A34A', '#DC2626', '#14B8A6'];
   function colorAt(i) { return PALETTE[i % PALETTE.length]; }
 
   /* ---------- Exportar a CSV ---------- */
@@ -1288,6 +1291,9 @@ const DataLayer = (() => {
 
     const out = [];
     const n = parsed.data.length;
+    let descVacias = 0;
+    state.diagnostics.parseErrors = state.diagnostics.parseErrors || {};
+    state.diagnostics.parseErrors[sheetTag] = (parsed.errors || []).length;
     for (let i = 0; i < n; i++) {
       const row = parsed.data[i];
       const fecha = map.FECHA ? Utils.parseDate(row[map.FECHA]) : null;
@@ -1345,7 +1351,7 @@ const DataLayer = (() => {
       }
       const novedadDetalle = esNovedadReal ? (novedadDetalleRaw || 'Sin motivo especificado') : 'Sin dato';
 
-      if (ciudad === 'Sin dato' && !fecha && estadoInfo.estado === 'SIN_DATO') continue; // descarta filas totalmente vacías
+      if (ciudad === 'Sin dato' && !fecha && estadoInfo.estado === 'SIN_DATO') { descVacias++; continue; } // descarta filas totalmente vacías
 
       out.push({
         _sheet: sheetTag,
@@ -1378,6 +1384,8 @@ const DataLayer = (() => {
         valor: map.VALOR ? Utils.parseNumber(row[map.VALOR]) : null
       });
     }
+    state.diagnostics.descVacias = state.diagnostics.descVacias || {};
+    state.diagnostics.descVacias[sheetTag] = descVacias;
     return out;
   }
 
@@ -1441,9 +1449,10 @@ const DataLayer = (() => {
   }
 
   /* Oportunidad de entrega: entre los servicios "cerrados con novedad", un número de entrega (columna B)
-     que aparece en más de una fila es un duplicado. Cada entrega repetida cuenta UNA sola vez
-     (una fila representante con estado OPORTUNIDAD); las demás filas repetidas se descartan para
-     no inflar el total. Resultado: Total = Entregados + Oportunidad + Cerrados con novedad. */
+     que aparece en más de una fila es un duplicado. Cada entrega repetida cuenta UNA sola vez como
+     oportunidad (fila representante, estado OPORTUNIDAD). Las demás filas repetidas NO se eliminan:
+     siguen en el total pero con estado REPETIDA (no cuentan ni como novedad ni como oportunidad),
+     de modo que Total = filas de las hojas = Entregados + Oportunidad + Novedad + Repetidas + otros. */
   function markDuplicadosEntrega(rows) {
     const groups = new Map();
     rows.forEach(r => {
@@ -1452,18 +1461,21 @@ const DataLayer = (() => {
         if (g) g.push(r); else groups.set(r.numEntrega, [r]);
       }
     });
-    const drop = new Set();
-    let oportunidades = 0, descartadas = 0;
+    let oportunidades = 0, repetidas = 0;
     groups.forEach(g => {
       if (g.length < 2) return;
       const rep = g[0];
       rep.estado = 'OPORTUNIDAD'; rep.esNovedadReal = false; rep.esDuplicado = true;
       rep.novedadDetalle = 'Sin dato'; rep.repeticiones = g.length;
       oportunidades++;
-      for (let i = 1; i < g.length; i++) { drop.add(g[i]); descartadas++; }
+      for (let i = 1; i < g.length; i++) {
+        const x = g[i];
+        x.estado = 'REPETIDA'; x.esNovedadReal = false; x.esDuplicado = true; x.novedadDetalle = 'Sin dato';
+        repetidas++;
+      }
     });
-    state.diagnostics.duplicados = { oportunidades, filasDescartadas: descartadas };
-    return drop.size ? rows.filter(r => !drop.has(r)) : rows;
+    state.diagnostics.duplicados = { oportunidades, filasRepetidas: repetidas };
+    return rows;
   }
 
   /* ---------- Carga completa ---------- */
@@ -1856,7 +1868,7 @@ const ChartsModule = (() => {
     const labels = [], values = [];
     for (let m = 1; m <= 12; m++) { if (map.has(m)) { labels.push(Utils.MESES_ABR[m - 1]); values.push(map.get(m)); } }
     upsert('chartByMonth', 'line', {
-      labels, datasets: [{ label: 'Servicios', data: values, borderColor: '#2563EB', backgroundColor: 'rgba(37,99,235,.12)', fill: true, tension: .35, pointRadius: 3 }]
+      labels, datasets: [{ label: 'Servicios', data: values, borderColor: '#0166B0', backgroundColor: 'rgba(1,102,176,.12)', fill: true, tension: .35, pointRadius: 3 }]
     }, { plugins: { legend: { display: false } } });
   }
 
@@ -1867,7 +1879,7 @@ const ChartsModule = (() => {
     const labels = [], values = [];
     for (let d = 1; d <= 31; d++) { labels.push(d); values.push(map.get(d) || 0); }
     upsert('chartByDay', 'bar', {
-      labels, datasets: [{ label: 'Servicios', data: values, backgroundColor: '#0EA5E9', borderRadius: 4 }]
+      labels, datasets: [{ label: 'Servicios', data: values, backgroundColor: '#4FA3DC', borderRadius: 4 }]
     }, { plugins: { legend: { display: false } } });
   }
 
@@ -1885,12 +1897,12 @@ const ChartsModule = (() => {
     const labels = [], values = [];
     for (let h = 0; h < 24; h++) { labels.push(`${h}:00`); values.push(map.get(h) || 0); }
     upsert('chartByHour', 'bar', {
-      labels, datasets: [{ label: 'Servicios', data: values, backgroundColor: '#8B5CF6', borderRadius: 4 }]
+      labels, datasets: [{ label: 'Servicios', data: values, backgroundColor: '#014C85', borderRadius: 4 }]
     }, { plugins: { legend: { display: false }, subtitle: anyHour ? undefined : { display: true, text: 'La fuente no trae hora en la fecha; mostrando distribución en 0.' } } });
   }
 
   /* ---------- Genérico: barras horizontales top N ---------- */
-  function renderTopBar(id, rows, keyFn, n = 15, color = '#2563EB') {
+  function renderTopBar(id, rows, keyFn, n = 15, color = '#0166B0') {
     const map = groupCount(rows, keyFn);
     const top = topN(map, n);
     upsert(id, 'bar', {
@@ -1900,7 +1912,7 @@ const ChartsModule = (() => {
   }
 
   /* ---------- Genérico: barras VERTICALES top N ---------- */
-  function renderTopBarV(id, rows, keyFn, n = 15, color = '#2563EB') {
+  function renderTopBarV(id, rows, keyFn, n = 15, color = '#0166B0') {
     const map = groupCount(rows, keyFn);
     const top = topN(map, n);
     upsert(id, 'bar', {
@@ -1989,7 +2001,7 @@ const ChartsModule = (() => {
 
   /* ---------- Paginado: una sola serie (ej. volumen o % efectividad por categoría) ---------- */
   function renderPaginatedSingle(chartId, pagId, rows, keyFn, opts) {
-    const { label = 'Servicios', color = '#2563EB', indexAxis = 'x', pageSize = 12, isRate = false, predicateFn = null, minSample = 1 } = opts || {};
+    const { label = 'Servicios', color = '#0166B0', indexAxis = 'x', pageSize = 12, isRate = false, predicateFn = null, minSample = 1 } = opts || {};
     let entries;
     if (isRate) {
       const totalMap = new Map(), hitMap = new Map();
@@ -2063,7 +2075,7 @@ const ChartsModule = (() => {
   }
 
   /* ---------- Tiempos: promedio por categoría, barras horizontales, mayor a menor ---------- */
-  function renderAvgTimeTopBar(id, rows, keyFn, timeField, n = 15, color = '#2563EB') {
+  function renderAvgTimeTopBar(id, rows, keyFn, timeField, n = 15, color = '#0166B0') {
     const map = new Map();
     rows.forEach(r => {
       const k = keyFn(r);
@@ -2098,7 +2110,7 @@ const ChartsModule = (() => {
     upsert(id, 'bar', {
       labels: top,
       datasets: [
-        { label: 'Creación / Alistamiento', data: avgC, backgroundColor: '#2563EB', borderRadius: 4 },
+        { label: 'Creación / Alistamiento', data: avgC, backgroundColor: '#0166B0', borderRadius: 4 },
         { label: 'Aceptación / Entrega', data: avgA, backgroundColor: '#16A34A', borderRadius: 4 }
       ]
     }, {
@@ -2133,7 +2145,7 @@ const ChartsModule = (() => {
     upsert(id, 'line', {
       labels,
       datasets: [
-        { label: 'Alistamiento', data: valuesC, borderColor: '#2563EB', backgroundColor: '#2563EB22', fill: false, tension: .3, pointRadius: 3 },
+        { label: 'Alistamiento', data: valuesC, borderColor: '#0166B0', backgroundColor: '#0166B022', fill: false, tension: .3, pointRadius: 3 },
         { label: 'Entrega', data: valuesA, borderColor: '#16A34A', backgroundColor: '#16A34A22', fill: false, tension: .3, pointRadius: 3 }
       ]
     }, {
@@ -2190,7 +2202,7 @@ const ChartsModule = (() => {
     });
     upsert('chartSlaDist', 'bar', {
       labels: ranges.map(r => r.label),
-      datasets: [{ label: 'Servicios', data: counts, backgroundColor: ['#16A34A', '#22C55E', '#F59E0B', '#F97316', '#DC2626'], borderRadius: 4 }]
+      datasets: [{ label: 'Servicios', data: counts, backgroundColor: ['#16A34A', '#22C55E', '#F9D009', '#D9B200', '#DC2626'], borderRadius: 4 }]
     }, { plugins: { legend: { display: false } } });
   }
 
@@ -2229,8 +2241,8 @@ const ChartsModule = (() => {
     }
     upsert('chartPercapitaMonthly', 'bar', {
       labels, datasets: [
-        { type: 'bar', label: 'Servicios por mensajero', data: per, backgroundColor: '#2563EB', yAxisID: 'y', borderRadius: 4 },
-        { type: 'line', label: 'Ticket promedio ($)', data: tick, borderColor: '#F59E0B', backgroundColor: '#F59E0B', yAxisID: 'y1', tension: .3 }
+        { type: 'bar', label: 'Servicios por mensajero', data: per, backgroundColor: '#0166B0', yAxisID: 'y', borderRadius: 4 },
+        { type: 'line', label: 'Ticket promedio ($)', data: tick, borderColor: '#F9D009', backgroundColor: '#F9D009', yAxisID: 'y1', tension: .3 }
       ]
     }, { scales: { y: { position: 'left', title: { display: true, text: 'Servicios / mensajero' } }, y1: { position: 'right', title: { display: true, text: 'Ticket $' }, grid: { drawOnChartArea: false } } } });
   }
@@ -2248,14 +2260,14 @@ const ChartsModule = (() => {
     upsert('chartPercapitaCity', 'bar', {
       labels: top.map(t => t[0]),
       datasets: [{ label: 'Servicios por mensajero', data: vals,
-        backgroundColor: vals.map(v => `rgba(22,163,74,${(0.35 + 0.65 * (v / mx)).toFixed(2)})`), borderRadius: 8, borderSkipped: false, maxBarThickness: 46 }]
+        backgroundColor: vals.map(v => `rgba(1,102,176,${(0.35 + 0.65 * (v / mx)).toFixed(2)})`), borderRadius: 8, borderSkipped: false, maxBarThickness: 46 }]
     }, { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, grace: '12%' }, x: { grid: { display: false } } }, layout: { padding: { top: 14 } },
       _plugins: [valueLabelsPlugin(v => v.toFixed(1))] });
   }
   // Puntos de venta: barras horizontales delgadas, color según modelo (fijo / colaborativo)
   function renderPercapitaByFarmacia(pcRows) {
     const top = pcEntries(pcRows, r => r.puntoVenta, 15);
-    const palette = { FIJO: '#2563EB', COLABORATIVO: '#F59E0B' };
+    const palette = { FIJO: '#0166B0', COLABORATIVO: '#F9D009' };
     const modeloDe = (arr) => { const c = {}; arr.forEach(r => { c[r.modelo] = (c[r.modelo] || 0) + 1; }); return Object.entries(c).sort((a, b) => b[1] - a[1])[0][0]; };
     const modelos = top.map(t => modeloDe(t[2]));
     upsert('chartPercapitaFarmacia', 'bar', {
@@ -2271,7 +2283,7 @@ const ChartsModule = (() => {
     const entries = Array.from(g.entries()).map(([k, arr]) => [k, pcAgg(arr)]);
     upsert('chartPercapitaModelo', 'doughnut', {
       labels: entries.map(e => e[0]),
-      datasets: [{ data: entries.map(e => Number(e[1].servicios.toFixed(0))), backgroundColor: ['#2563EB', '#F59E0B', '#16A34A', '#8B5CF6'], borderWidth: 2, borderColor: '#fff' }]
+      datasets: [{ data: entries.map(e => Number(e[1].servicios.toFixed(0))), backgroundColor: ['#0166B0', '#F9D009', '#16A34A', '#014C85'], borderWidth: 2, borderColor: '#fff' }]
     }, { plugins: { legend: { position: 'bottom' } }, cutout: '60%' });
   }
   function renderPercapitaVsServicios(pcRows, rows) {
@@ -2289,8 +2301,8 @@ const ChartsModule = (() => {
     upsert('chartPercapitaVsServicios', 'line', {
       labels,
       datasets: [
-        { label: 'Servicios operados (hojas)', data: opVals, borderColor: '#2563EB', backgroundColor: 'rgba(37,99,235,.15)', fill: true, tension: .35, pointRadius: 4, pointHoverRadius: 6 },
-        { label: 'Servicios en Percápita', data: pcVals, borderColor: '#F59E0B', backgroundColor: 'rgba(245,158,11,.15)', fill: true, tension: .35, pointRadius: 4, borderDash: [6, 4], pointHoverRadius: 6 }
+        { label: 'Servicios operados (hojas)', data: opVals, borderColor: '#0166B0', backgroundColor: 'rgba(1,102,176,.15)', fill: true, tension: .35, pointRadius: 4, pointHoverRadius: 6 },
+        { label: 'Servicios en Percápita', data: pcVals, borderColor: '#F9D009', backgroundColor: 'rgba(249,208,9,.15)', fill: true, tension: .35, pointRadius: 4, borderDash: [6, 4], pointHoverRadius: 6 }
       ]
     }, { interaction: { mode: 'index', intersect: false }, scales: { y: { beginAtZero: true } } });
   }
@@ -2380,7 +2392,7 @@ const MapModule = (() => {
     }).addTo(map);
     if (typeof L.heatLayer === 'function') {
       // Se crea SIN añadirla al mapa: el contenedor está oculto (tamaño 0) y leaflet.heat falla al dibujar; se monta en render() cuando ya es visible
-      heatLayer = L.heatLayer([], { radius: 20, blur: 16, maxZoom: 11, max: 1.0, minOpacity: 0.4, gradient: { 0.2: '#3B82F6', 0.4: '#22C55E', 0.6: '#FACC15', 0.8: '#F97316', 1.0: '#DC2626' } });
+      heatLayer = L.heatLayer([], { radius: 20, blur: 16, maxZoom: 11, max: 1.0, minOpacity: 0.4, gradient: { 0.2: '#3D8FCC', 0.4: '#22C55E', 0.6: '#FACC15', 0.8: '#D9B200', 1.0: '#DC2626' } });
     }
     markersLayer = L.layerGroup().addTo(map);
   }
@@ -2388,7 +2400,7 @@ const MapModule = (() => {
   function metricColor(cumplimiento) {
     if (cumplimiento === null || cumplimiento === undefined || isNaN(cumplimiento)) return '#94A3B8';
     if (cumplimiento >= 90) return '#16A34A';
-    if (cumplimiento >= 75) return '#F59E0B';
+    if (cumplimiento >= 75) return '#F9D009';
     return '#DC2626';
   }
 
@@ -2461,7 +2473,7 @@ const MapModule = (() => {
     data.forEach(d => {
       const drawMarker = (c) => {
         const radius = 5 + (Math.sqrt(d.total / maxTotal) * 14);
-        const color = metricMode === 'cumplimiento' ? metricColor(d.cumplimiento) : '#1E3A8A';
+        const color = metricMode === 'cumplimiento' ? metricColor(d.cumplimiento) : '#014C85';
         const marker = L.circleMarker(c, { radius, color: '#fff', weight: 1.5, fillColor: color, fillOpacity: 0.85 });
         marker.bindPopup(`
           <div class="map-popup">
@@ -2811,6 +2823,19 @@ const MapModule = (() => {
       }
       lines.push('');
     });
+    const leidas = ['hoja1', 'hoja2', 'hoja3'].reduce((a, t) => a + (diag.rowCounts[t] || 0), 0);
+    const vacias = ['hoja1', 'hoja2', 'hoja3'].reduce((a, t) => a + ((diag.descVacias && diag.descVacias[t]) || 0), 0);
+    const repetidas = (diag.duplicados && diag.duplicados.filasRepetidas) || 0;
+    const mostradas = DataLayer.getState().rawRows.length;
+    lines.push('── CONCILIACIÓN DE FILAS (hojas de servicios) ──');
+    lines.push(`Filas leídas en las hojas 1+2+3: ${leidas}`);
+    lines.push(`(−) Filas totalmente vacías (sin ciudad, fecha ni estado): ${vacias}`);
+    lines.push(`(=) Servicios que muestra el dashboard (sin filtros): ${mostradas}`);
+    lines.push(`Diferencia sin explicar: ${leidas - vacias - mostradas}`);
+    lines.push(`De ellos, filas repetidas de una entrega con novedad (no se eliminan; 1 por entrega cuenta como oportunidad): ${repetidas}`);
+    lines.push(`Errores de lectura del CSV por hoja: ${['hoja1', 'hoja2', 'hoja3'].map(t => t + '=' + ((diag.parseErrors && diag.parseErrors[t]) || 0)).join(' · ')}`);
+    lines.push(`Entregas con novedad repetidas (oportunidad): ${(diag.duplicados && diag.duplicados.oportunidades) || 0}`);
+    lines.push('');
     lines.push('── VALORES DE "ESTADO" ENCONTRADOS (crudo → cantidad) ──');
     const estadoEntries = Object.entries(diag.estadoCounts).sort((a, b) => b[1] - a[1]).slice(0, 20);
     if (estadoEntries.length) estadoEntries.forEach(([k, v]) => lines.push(`  "${k}" → ${v}`));
@@ -2831,8 +2856,8 @@ const MapModule = (() => {
     });
     lines.push('');
     const withFechaFiltro = allRows.filter(r => r.fechaFiltro !== null && r.fechaFiltro !== undefined).length;
-    lines.push(`── FILTRO DE FECHA (columna AJ) ──`);
-    lines.push(`Servicios con fecha resuelta desde AJ: ${withFechaFiltro} de ${allRows.length} (${allRows.length ? Utils.formatPct(withFechaFiltro / allRows.length * 100) : '—'})`);
+    lines.push(`── FILTRO DE FECHA (columna E, fecha de entrega) ──`);
+    lines.push(`Servicios con fecha resuelta desde la columna E: ${withFechaFiltro} de ${allRows.length} (${allRows.length ? Utils.formatPct(withFechaFiltro / allRows.length * 100) : '—'})`);
     ['hoja1', 'hoja2'].forEach(tag => {
       if (diag.fechaFiltroSample[tag] && diag.fechaFiltroSample[tag].length) {
         lines.push(`Muestra cruda ${tag}:`);
@@ -2867,6 +2892,7 @@ const MapModule = (() => {
     const cancelados = rows.filter(r => r.estado === 'CANCELADO').length;
     const novedades = rows.filter(r => r.estado === 'NOVEDAD').length;
     const oportunidades = rows.filter(r => r.estado === 'OPORTUNIDAD').length;
+    const repetidas = rows.filter(r => r.estado === 'REPETIDA').length;
     const tiemposCreacion = rows.map(r => r.tiempoCreacion).filter(v => v !== null && v !== undefined);
     const tiempoCreacionProm = tiemposCreacion.length ? tiemposCreacion.reduce((a, b) => a + b, 0) / tiemposCreacion.length : null;
     const tiemposAceptacion = rows.map(r => r.tiempoAceptacion).filter(v => v !== null && v !== undefined);
@@ -2877,7 +2903,7 @@ const MapModule = (() => {
     const municipios = new Set(rows.map(r => r.municipio).filter(c => c && c !== 'Sin dato')).size;
     const cumplimiento = total ? (efectivos / total) * 100 : null;
     return {
-      total, efectivos, cancelados, novedades, oportunidades, tiemposCreacionN: tiemposCreacion.length, tiemposAceptacionN: tiemposAceptacion.length, tiempoCreacionProm, tiempoAceptacionProm, ticketProm, ciudades, municipios, cumplimiento,
+      total, efectivos, cancelados, novedades, oportunidades, repetidas, tiemposCreacionN: tiemposCreacion.length, tiemposAceptacionN: tiemposAceptacion.length, tiempoCreacionProm, tiempoAceptacionProm, ticketProm, ciudades, municipios, cumplimiento,
       cancelacionesPct: total ? (cancelados / total) * 100 : null,
       novedadesPct: total ? (novedades / total) * 100 : null,
       oportunidadPct: total ? (oportunidades / total) * 100 : null,
@@ -2918,7 +2944,7 @@ const MapModule = (() => {
     return [
       kpiCard('Total Servicios', n(cur.total), v('total'), true, null, '📦', '100% de la base'),
       kpiCard('Entregados', n(cur.efectivos), v('entregadosPct'), true, Utils.semaforo(cur.entregadosPct, KPI_THRESHOLDS.cumplimiento), '✅', `${Utils.formatPct(cur.entregadosPct)} del total`),
-      kpiCard('Oportunidad de Entrega', n(cur.oportunidades), v('oportunidadPct'), false, null, '🔁', `${Utils.formatPct(cur.oportunidadPct)} del total`),
+      kpiCard('Oportunidad de Entrega', n(cur.oportunidades), v('oportunidadPct'), false, null, '🔁', `${Utils.formatPct(cur.oportunidadPct)} del total` + (cur.repetidas ? ` · +${n(cur.repetidas)} filas repetidas` : '')),
       kpiCard('Cerrados con Novedad', n(cur.novedades), v('novedadesPct'), false, null, '⚠️', `${Utils.formatPct(cur.novedadesPct)} del total`),
       kpiCard('Tiempo de Alistamiento', Utils.minutesToHHMM(cur.tiempoCreacionProm), v('tiempoCreacionProm'), false, null, '🕐', `${n(cur.tiemposCreacionN)} servicios (${pctOf(cur.tiemposCreacionN)})`),
       kpiCard('Tiempo de Entrega', Utils.minutesToHHMM(cur.tiempoAceptacionProm), v('tiempoAceptacionProm'), false, null, '⏱', `${n(cur.tiemposAceptacionN)} servicios (${pctOf(cur.tiemposAceptacionN)})` + (slaPct !== null ? ` · ${Utils.formatPct(slaPct)} dentro de SLA` : ''))
@@ -2962,8 +2988,8 @@ const MapModule = (() => {
       kpiCard('Filas repetidas en la hoja', Utils.formatNumber(filasRepetidas), null, false, null, '📑', 'se cuenta 1 por entrega'),
       kpiCard('Promedio de repeticiones', ops.length ? (filasRepetidas / ops.length).toFixed(1) : '—', null, false, null, '🔢', 'filas por entrega repetida')
     ].join('');
-    ChartsModule.renderTopBar('chartOportunidadCiudad', ops, r => r.ciudad, 15, '#8B5CF6');
-    ChartsModule.renderTopBarV('chartOportunidadPunto', ops, r => r.puntoVenta, 15, '#F97316');
+    ChartsModule.renderTopBar('chartOportunidadCiudad', ops, r => r.ciudad, 15, '#014C85');
+    ChartsModule.renderTopBarV('chartOportunidadPunto', ops, r => r.puntoVenta, 15, '#D9B200');
   }
 
   function renderKPIsIndicadores(rows) {
@@ -3139,31 +3165,31 @@ const MapModule = (() => {
     // Inicio — resumen condensado
 
     // Indicadores — resultados
-    ChartsModule.renderTopBarV('chartTopCiudadesVolumen', rows, r => r.ciudad, 15, '#2563EB');
+    ChartsModule.renderTopBarV('chartTopCiudadesVolumen', rows, r => r.ciudad, 15, '#0166B0');
     ChartsModule.renderRateBarH('chartEfectividadCiudad', rows, r => r.ciudad, r => r.estado === 'EFECTIVO', 15, '#16A34A', 3);
     ChartsModule.renderDoughnut('chartTipoServicioTorta', rows, r => r.tipoServicio, 10);
     ChartsModule.renderRateBarH('chartTipoServicioEfectividad', rows, r => r.tipoServicio, r => r.estado === 'EFECTIVO', 10, '#16A34A', 3);
     ChartsModule.renderDoughnut('chartNovedadTorta', rows.filter(r => r.esNovedadReal), r => r.novedadDetalle, 10);
-    ChartsModule.renderTopBarV('chartNovedadCiudad', rows.filter(r => r.esNovedadReal), r => r.ciudad, 15, '#F59E0B');
-    ChartsModule.renderPaginatedSingle('chartPuntoVentaVolumen', 'pagPuntoVentaVolumen', rows, r => r.puntoVenta, { label: 'Servicios', color: '#2563EB', pageSize: 12 });
+    ChartsModule.renderTopBarV('chartNovedadCiudad', rows.filter(r => r.esNovedadReal), r => r.ciudad, 15, '#F9D009');
+    ChartsModule.renderPaginatedSingle('chartPuntoVentaVolumen', 'pagPuntoVentaVolumen', rows, r => r.puntoVenta, { label: 'Servicios', color: '#0166B0', pageSize: 12 });
     ChartsModule.renderPaginatedSingle('chartPuntoVentaEfectividad', 'pagPuntoVentaEfectividad', rows, r => r.puntoVenta, { label: '% Efectividad', color: '#16A34A', indexAxis: 'y', isRate: true, predicateFn: r => r.estado === 'EFECTIVO', minSample: 3, pageSize: 12 });
     ChartsModule.renderPaginatedGrouped('chartNovedadPuntoVenta', 'pagNovedadPuntoVenta', rows, r => r.puntoVenta,
-      [{ label: 'Total', color: '#93C5FD' }, { label: 'Con Novedad', color: '#DC2626', predicateFn: r => r.esNovedadReal }], 12);
+      [{ label: 'Total', color: '#9CC7E8' }, { label: 'Con Novedad', color: '#DC2626', predicateFn: r => r.esNovedadReal }], 12);
     ChartsModule.renderRateByMonth('chartCumplimiento', rows, r => r.estado === 'EFECTIVO', '#16A34A');
-    ChartsModule.renderRateByMonth('chartNovedades', rows, r => r.esNovedadReal, '#F59E0B');
+    ChartsModule.renderRateByMonth('chartNovedades', rows, r => r.esNovedadReal, '#F9D009');
     ChartsModule.renderRateByMonth('chartCancelaciones', rows, r => r.estado === 'CANCELADO', '#DC2626');
 
     // Operación — distribución operacional (dónde y cómo)
-    ChartsModule.renderTopBar('chartByCity', rows, r => r.ciudad, 15, '#2563EB');
+    ChartsModule.renderTopBar('chartByCity', rows, r => r.ciudad, 15, '#0166B0');
     ChartsModule.renderDoughnut('chartByChannelType', rows, r => r.tipoCanal);
-    ChartsModule.renderTopBar('chartOperacionTipoServicio', rows, r => r.tipoServicio, 12, '#0EA5E9');
-    ChartsModule.renderTopBar('chartOperacionPuntoVenta', rows, r => r.puntoVenta, 15, '#2563EB');
-    ChartsModule.renderTopBar('chartByMunicipality', rows, r => r.municipio, 15, '#0EA5E9');
+    ChartsModule.renderTopBar('chartOperacionTipoServicio', rows, r => r.tipoServicio, 12, '#4FA3DC');
+    ChartsModule.renderTopBar('chartOperacionPuntoVenta', rows, r => r.puntoVenta, 15, '#0166B0');
+    ChartsModule.renderTopBar('chartByMunicipality', rows, r => r.municipio, 15, '#4FA3DC');
     ChartsModule.renderByMonth(rows);
     ChartsModule.renderByDay(rows);
 
     // SLA — tiempos
-    ChartsModule.renderAvgTimeTopBar('chartTiempoCreacionCiudad', rows, r => r.ciudad, 'tiempoCreacion', 15, '#2563EB');
+    ChartsModule.renderAvgTimeTopBar('chartTiempoCreacionCiudad', rows, r => r.ciudad, 'tiempoCreacion', 15, '#0166B0');
     ChartsModule.renderAvgTimeTopBar('chartTiempoAceptacionCiudad', rows, r => r.ciudad, 'tiempoAceptacion', 15, '#16A34A');
     ChartsModule.renderAvgTimeGrouped('chartTiempoTipoServicio', rows, r => r.tipoServicio, 12);
     ChartsModule.renderTiempoTendenciaMensual('chartTiempoTendenciaMensual', rows);
