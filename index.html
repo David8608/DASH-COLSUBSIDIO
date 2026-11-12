@@ -353,6 +353,14 @@ html[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
 .map-toolbar { display: flex; gap: 18px; margin-bottom: 12px; font-size: 12.5px; color: var(--grey-700); font-weight: 600; }
 .map-toolbar select { padding: 6px 8px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); font-size: 12.5px; }
 .map-box { height: 560px; border-radius: var(--radius-md); overflow: hidden; border: 1px solid var(--grey-200); }
+.presencia-resumen { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:12px; }
+.presencia-chip { background: var(--grey-100); border:1px solid var(--grey-200); border-radius: 10px; padding:8px 12px; font-size:12.5px; color: var(--grey-700); }
+.presencia-chip b { font-family: var(--font-mono); font-size:16px; color: var(--grey-900); margin-right:4px; }
+.pin-presencia { width:26px; height:26px; border-radius:50%; background:#0166B0; color:#fff; border:3px solid #F9D009; display:flex; align-items:center; justify-content:center; font:700 11px/1 var(--font-mono, monospace); box-shadow:0 1px 4px rgba(0,0,0,.45); }
+.pin-presencia.colab { border-color:#fff; background:#D9B200; color:#111; }
+.pin-presencia.solo-serv { background:#64748B; border-color:#fff; }
+.map-legend { background: rgba(255,255,255,.95); color:#1e293b; padding:8px 10px; border-radius:8px; font-size:11.5px; line-height:1.7; box-shadow:0 1px 5px rgba(0,0,0,.3); }
+.map-legend i { display:inline-block; width:12px; height:12px; border-radius:50%; margin-right:6px; vertical-align:-2px; border:2px solid #F9D009; background:#0166B0; }
 .map-popup h4 { margin-bottom: 6px; font-size: 13px; }
 .map-popup table { font-size: 12px; border-collapse: collapse; }
 .map-popup td { padding: 2px 6px 2px 0; color: var(--grey-700); }
@@ -524,6 +532,21 @@ tbody tr:hover { background: var(--grey-50); }
         <div class="card"><h3>Novedades</h3><div id="inicioNovedades" class="summary-block"></div></div>
         <div class="card"><h3>Tiempos</h3><div id="inicioTiempos" class="summary-block"></div></div>
       </div>
+
+      <div class="card" style="margin-top:16px;">
+        <h3>Dotación de la operación</h3>
+        <p id="dotCorte" class="chart-subtitle"></p>
+        <div id="dotKpis" class="kpi-grid" style="margin-bottom:14px;"></div>
+        <div class="table-scroll" style="max-height:380px;overflow:auto;">
+          <table id="dotTable">
+            <thead><tr><th>Ciudad</th><th>Planta (fijos)</th><th>Colaborativos</th><th>Total mensajeros</th><th>Puntos atendidos</th></tr></thead>
+            <tbody id="dotBody"></tbody>
+          </table>
+        </div>
+        <h3 style="margin:18px 0 4px;font-size:14px;">Puntos atendidos por ciudad</h3>
+        <p class="chart-subtitle">Haz clic en una ciudad para ver sus puntos, modelo, mensajeros y horario</p>
+        <div id="dotPuntos"></div>
+      </div>
     </section>
 
     <!-- ---------- INDICADORES ---------- -->
@@ -689,6 +712,7 @@ tbody tr:hover { background: var(--grey-50); }
             <select id="mapMetricSelect"><option value="cumplimiento">Cumplimiento</option><option value="total">Volumen</option></select>
           </label>
         </div>
+        <div id="presenciaResumen" class="presencia-resumen"></div>
         <div id="mapCoverage" class="map-box"></div>
       </div>
     </section>
@@ -2386,6 +2410,10 @@ const MapModule = (() => {
 
   let map = null;
   let markersLayer = null;
+  let presenceLayer = null;
+  let lastPresencePts = [];
+  let heatUserOff = false;
+  let legendCtl = null;
   let heatLayer = null;
   let lastHeatPoints = [];
   let fittedOnce = false;
@@ -2404,7 +2432,16 @@ const MapModule = (() => {
     'VILLAVICENCIO': [4.1420, -73.6266], 'MONTERIA': [8.7479, -75.8814], 'VALLEDUPAR': [10.4631, -73.2532],
     'SINCELEJO': [9.3047, -75.3978], 'POPAYAN': [2.4448, -76.6147], 'TUNJA': [5.5353, -73.3678],
     'FLORENCIA': [1.6144, -75.6062], 'RIOHACHA': [11.5444, -72.9072], 'QUIBDO': [5.6947, -76.6611],
-    'YOPAL': [5.3378, -72.3959], 'ARMENIA': [4.5339, -75.6811], 'SANTA MARTA': [11.2408, -74.1990]
+    'YOPAL': [5.3378, -72.3959], 'ARMENIA': [4.5339, -75.6811], 'SANTA MARTA': [11.2408, -74.1990],
+    'ACACIAS': [3.9877, -73.7586], 'ANAPOIMA': [4.5517, -74.5359], 'APARTADO': [7.8830, -76.6250], 'BUGA': [3.9008, -76.2980],
+    'CAJICA': [4.9180, -74.0280], 'CHIA': [4.8590, -74.0590], 'CHIQUINQUIRA': [5.6170, -73.8170], 'COTA': [4.8100, -74.0980],
+    'DUITAMA': [5.8270, -73.0340], 'FACATATIVA': [4.8140, -74.3540], 'FUNZA': [4.7160, -74.2110], 'FUSAGASUGA': [4.3360, -74.3640],
+    'GIRARDOT': [4.3030, -74.8030], 'GUARNE': [6.2790, -75.4420], 'LA CEJA': [6.0320, -75.4300], 'LA UNION': [5.9740, -75.3610],
+    'MADRID': [4.7330, -74.2640], 'MARINILLA': [6.1750, -75.3370], 'MOSQUERA': [4.7060, -74.2300], 'PAIPA': [5.7800, -73.1170],
+    'PALMIRA': [3.5390, -76.3030], 'RIONEGRO': [6.1550, -75.3740], 'SANTA FE DE ANTIOQUIA': [6.5560, -75.8280], 'SOGAMOSO': [5.7140, -72.9270],
+    'VILLA DE LEYVA': [5.6330, -73.5270], 'VILLA DE LEIVA': [5.6330, -73.5270], 'VILLETA': [5.0120, -74.4730], 'ZIPAQUIRA': [5.0220, -74.0040], 'EL RETIRO': [6.0600, -75.5020],
+    'EL RODADERO': [11.2000, -74.2300], 'TOCANCIPA': [4.9650, -73.9120], 'SOACHA': [4.5790, -74.2170], 'ITAGUI': [6.1846, -75.5990],
+    'ENVIGADO': [6.1759, -75.5917], 'SABANETA': [6.1510, -75.6160], 'BELLO': [6.3373, -75.5579], 'LA ESTRELLA': [6.1580, -75.6430]
   };
 
   function keyFor(name) { return Utils.normalize(name); }
@@ -2457,6 +2494,18 @@ const MapModule = (() => {
       };
     }
     markersLayer = L.layerGroup().addTo(map);
+    presenceLayer = L.layerGroup().addTo(map);
+    // Control de capas: el usuario activa/desactiva calor, presencia y servicios por ciudad
+    const overlays = {};
+    overlays['Presencia por ciudad'] = presenceLayer;
+    if (heatLayer) overlays['Mapa de calor'] = heatLayer;
+    overlays['Servicios por ciudad'] = markersLayer;
+    L.control.layers(null, overlays, { collapsed: false, position: 'topright' }).addTo(map);
+    map.on('overlayremove', (e) => { if (e.layer === heatLayer) heatUserOff = true; });
+    map.on('overlayadd', (e) => { if (e.layer === heatLayer) { heatUserOff = false; setTimeout(applyHeat, 50); } });
+    legendCtl = L.control({ position: 'bottomleft' });
+    legendCtl.onAdd = () => { const d = L.DomUtil.create('div', 'map-legend'); d.innerHTML = '<div><i></i>Ciudad con presencia (número = mensajeros)</div><div><i style="background:#D9B200;border-color:#fff;"></i>Con mensajeros colaborativos</div><div><i style="background:#64748B;border-color:#fff;"></i>Con servicios, sin mensajeros en Percápita</div>'; return d; };
+    legendCtl.addTo(map);
   }
 
   function metricColor(cumplimiento) {
@@ -2498,9 +2547,10 @@ const MapModule = (() => {
     });
   }
 
-  function render(rows, pcRows, useMunicipio, metricMode) {
+  function render(rows, pcRows, useMunicipio, metricMode, presence) {
     if (!map) return;
     markersLayer.clearLayers();
+    if (presenceLayer) { presenceLayer.clearLayers(); renderPresence(presence || []); }
 
     // Capa de calor: un punto por CADA servicio con coordenadas propias (AA/AB) → densidad real
     if (heatLayer) {
@@ -2551,14 +2601,43 @@ const MapModule = (() => {
     });
   }
 
+  function renderPresence(list) {
+    lastPresencePts = list.map(d => d.centroid || KNOWN_COORDS[keyFor(d.name)] || geocodeCache[keyFor(d.name)]).filter(Boolean);
+    list.forEach(d => {
+      const draw = (c) => {
+        const mens = (d.planta || 0) + (d.colab || 0);
+        const cls = 'pin-presencia' + (d.colab > 0 ? ' colab' : '') + (mens === 0 ? ' solo-serv' : '');
+        const txt = mens === 0 ? '•' : (Math.round(mens) === mens ? String(mens) : mens.toFixed(1).replace('.', ','));
+        const icon = L.divIcon({ className: '', html: `<div class="${cls}">${txt}</div>`, iconSize: [26, 26], iconAnchor: [13, 13] });
+        const f = (n) => (Math.round(n * 10) / 10).toString().replace('.', ',');
+        const m = L.marker(c, { icon, zIndexOffset: 500, title: d.name });
+        m.bindTooltip(d.name, { direction: 'top', offset: [0, -12] });
+        m.bindPopup(`<div class="map-popup"><h4>${d.name}</h4><table>
+          <tr><td>Mensajeros de planta</td><td><b>${f(d.planta || 0)}</b></td></tr>
+          <tr><td>Mensajeros colaborativos</td><td><b>${f(d.colab || 0)}</b></td></tr>
+          <tr><td>Puntos atendidos</td><td><b>${Utils.formatNumber(d.puntos || 0)}</b></td></tr>
+          <tr><td>Servicios (filtros actuales)</td><td><b>${Utils.formatNumber(d.servicios || 0)}</b></td></tr></table></div>`);
+        m.addTo(presenceLayer);
+      };
+      if (d.centroid) draw(d.centroid);
+      else {
+        const known = KNOWN_COORDS[keyFor(d.name)] || geocodeCache[keyFor(d.name)];
+        if (known) draw(known); else queueGeocode(d.name, (c) => draw(c));
+      }
+    });
+  }
+
   function applyHeat() {
-    if (!map || !heatLayer) return;
+    if (!map || !heatLayer || heatUserOff) return;
     const cont = map.getContainer();
     if (!cont.offsetWidth || !cont.offsetHeight) return; // pestaña oculta: se reintenta cuando se abre
     map.invalidateSize();
     heatLayer.setLatLngs(lastHeatPoints);
     if (!map.hasLayer(heatLayer)) heatLayer.addTo(map);
     else if (typeof heatLayer.redraw === 'function') heatLayer.redraw();
+    if (!fittedOnce && !lastHeatPoints.length && lastPresencePts.length > 1) {
+      try { map.fitBounds(L.latLngBounds(lastPresencePts), { padding: [40, 40], maxZoom: 8, animate: false }); fittedOnce = true; } catch (e) {}
+    }
     if (lastHeatPoints.length && !fittedOnce) {
       try { map.fitBounds(L.latLngBounds(lastHeatPoints.map(p => [p[0], p[1]])), { padding: [30, 30], maxZoom: 9, animate: false }); fittedOnce = true; } catch (e) {}
     }
@@ -2874,6 +2953,7 @@ const MapModule = (() => {
     safe('KPIs', () => renderKPIs(filteredRows));
     safe('KPIs Indicadores', () => renderKPIsIndicadores(filteredRows));
     safe('resumen Inicio', () => renderInicioResumen(filteredRows));
+    safe('dotación Inicio', () => renderInicioDotacion());
     safe('estadísticas SLA', () => renderSlaStats(filteredRows));
     safe('gráficos', () => renderCharts(filteredRows, pcRows));
     safe('mapa', () => renderMap());
@@ -3124,6 +3204,99 @@ const MapModule = (() => {
     return { avg: sum / c, min: mn, max: mx, n: c };
   }
 
+  /* Dotación de la operación (Inicio): mensajeros de planta (modelo FIJO) y colaborativos, por ciudad y punto.
+     Sale de la hoja Percápita. CANTIDAD MENSAJEROS es fracción de mensajero (equivalente a tiempo completo).
+     Si hay varios meses, se toma el último mes disponible (no se suman meses). */
+  /* Filas de Percápita para dotación: sin filtro de modelo y solo el último mes disponible (no se suman meses). */
+  function dotacionRows() {
+    const prev = pcModeloFilter; pcModeloFilter = '';
+    let rows; try { rows = getFilteredPercapita(); } finally { pcModeloFilter = prev; }
+    const meses = rows.map(r => r.mes).filter(Boolean);
+    const corte = meses.length ? Math.max.apply(null, meses) : null;
+    return corte ? rows.filter(r => r.mes === corte) : rows;
+  }
+  const CITY_ALIAS = { 'SANTA MARTHA': 'SANTA MARTA', 'SANTAMARTA': 'SANTA MARTA', 'RIO NEGRO': 'RIONEGRO', 'BOGOTA DC': 'BOGOTA', 'BOGOTA D.C.': 'BOGOTA' };
+  const canonCity = (n) => { const k = Utils.normalize(n); return CITY_ALIAS[k] || k; };
+  const titleCase = (t) => t.toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase()).replace(/\bDe\b/g, 'de');
+  /* Presencia por ciudad: unión de ciudades con mensajeros (Percápita, último mes) y ciudades con servicios (hojas, filtros actuales). */
+  function buildPresence(rows) {
+    const m = new Map();
+    const get = (k, name) => { if (!m.has(k)) m.set(k, { key: k, name: titleCase(CITY_ALIAS[Utils.normalize(name)] || Utils.normalize(name)), planta: 0, colab: 0, puntos: new Set(), servicios: 0, lat: 0, lng: 0, n: 0 }); return m.get(k); };
+    dotacionRows().forEach(r => {
+      const k = canonCity(r.ciudad); if (!k || k === 'SIN DATO' || k === 'NACIONAL') return;
+      const d = get(k, r.ciudad);
+      if (r.modelo === 'FIJO') d.planta += r.mensajeros || 0; else if (r.modelo === 'COLABORATIVO') d.colab += r.mensajeros || 0;
+      d.puntos.add(Utils.normalize(r.puntoVenta));
+    });
+    rows.forEach(r => {
+      if (!r.ciudad || r.ciudad === 'Sin dato') return;
+      const k = canonCity(r.ciudad); const d = get(k, r.ciudad);
+      d.servicios++;
+      if (r.lat !== null && r.lng !== null) { d.lat += r.lat; d.lng += r.lng; d.n++; }
+    });
+    return Array.from(m.values()).map(d => ({ name: d.name, planta: d.planta, colab: d.colab, puntos: d.puntos.size, servicios: d.servicios, centroid: d.n ? [d.lat / d.n, d.lng / d.n] : null }))
+      .sort((a, b) => (b.planta + b.colab) - (a.planta + a.colab) || b.servicios - a.servicios);
+  }
+  function renderPresenciaResumen(list) {
+    const box = document.getElementById('presenciaResumen'); if (!box) return;
+    const f = (n) => (Math.round(n * 10) / 10).toString().replace('.', ',');
+    const conMens = list.filter(d => d.planta + d.colab > 0).length;
+    const planta = list.reduce((t, d) => t + d.planta, 0), colab = list.reduce((t, d) => t + d.colab, 0), puntos = list.reduce((t, d) => t + d.puntos, 0);
+    box.innerHTML = [
+      `<div class="presencia-chip"><b>${list.length}</b>ciudades con presencia</div>`,
+      `<div class="presencia-chip"><b>${conMens}</b>con mensajeros en Percápita</div>`,
+      `<div class="presencia-chip"><b>${f(planta)}</b>mensajeros de planta</div>`,
+      `<div class="presencia-chip"><b>${f(colab)}</b>mensajeros colaborativos</div>`,
+      `<div class="presencia-chip"><b>${Utils.formatNumber(puntos)}</b>puntos atendidos</div>`
+    ].join('');
+  }
+
+  function renderInicioDotacion() {
+    const kbox = document.getElementById('dotKpis');
+    if (!kbox) return;
+    let rows = dotacionRows();
+    const esc = (t) => String(t === null || t === undefined ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const fmt = (n) => (Math.round(n * 10) / 10).toString().replace('.', ',');
+    const corte = rows.length ? rows[0].mes : null;
+    document.getElementById('dotCorte').textContent = rows.length
+      ? `Fuente: hoja Percápita${corte ? ' · corte ' + Utils.MESES[corte - 1] : ''} · mensajeros en equivalente a tiempo completo (una fila con 0,5 cuenta medio mensajero)`
+      : 'Sin datos en la hoja Percápita para los filtros seleccionados.';
+    const tipo = (r) => r.modelo === 'FIJO' ? 'planta' : r.modelo === 'COLABORATIVO' ? 'colab' : 'otro';
+    const ciudades = new Map();
+    rows.forEach(r => {
+      const ck = Utils.normalize(r.ciudad); if (!ck || ck === 'SIN DATO') return;
+      if (!ciudades.has(ck)) ciudades.set(ck, { ciudad: r.ciudad, planta: 0, colab: 0, otro: 0, puntos: new Map() });
+      const c = ciudades.get(ck);
+      c[tipo(r)] += r.mensajeros || 0;
+      const pk = Utils.normalize(r.puntoVenta);
+      if (!c.puntos.has(pk)) c.puntos.set(pk, { nombre: r.puntoVenta, mens: 0, modelos: new Set(), horarios: new Set() });
+      const pt = c.puntos.get(pk);
+      pt.mens += r.mensajeros || 0; pt.modelos.add(r.modelo); if (r.horario) pt.horarios.add(r.horario);
+    });
+    const list = Array.from(ciudades.values()).sort((a, b) => (b.planta + b.colab + b.otro) - (a.planta + a.colab + a.otro));
+    const tot = list.reduce((t, c) => ({ planta: t.planta + c.planta, colab: t.colab + c.colab, otro: t.otro + c.otro, puntos: t.puntos + c.puntos.size }), { planta: 0, colab: 0, otro: 0, puntos: 0 });
+    const nPuntosPlanta = new Set(), nPuntosColab = new Set();
+    rows.forEach(r => { const k = Utils.normalize(r.ciudad) + '|' + Utils.normalize(r.puntoVenta); if (r.modelo === 'FIJO') nPuntosPlanta.add(k); else if (r.modelo === 'COLABORATIVO') nPuntosColab.add(k); });
+    kbox.innerHTML = [
+      kpiCard('Mensajeros de planta', fmt(tot.planta), null, true, null, '🛵', `modelo FIJO · ${nPuntosPlanta.size} puntos`),
+      kpiCard('Mensajeros colaborativos', fmt(tot.colab), null, true, null, '🤝', `modelo COLABORATIVO · ${nPuntosColab.size} puntos`),
+      kpiCard('Total mensajeros', fmt(tot.planta + tot.colab + tot.otro), null, true, null, '👥', 'equivalente a tiempo completo'),
+      kpiCard('Ciudades', Utils.formatNumber(list.length), null, true, null, '🌎', 'con operación'),
+      kpiCard('Puntos atendidos', Utils.formatNumber(tot.puntos), null, true, null, '🏪', 'puntos de venta distintos')
+    ].join('');
+    const body = document.getElementById('dotBody');
+    body.innerHTML = list.map(c => `<tr><td>${esc(c.ciudad)}</td><td>${fmt(c.planta)}</td><td>${fmt(c.colab)}</td><td><b>${fmt(c.planta + c.colab + c.otro)}</b></td><td>${c.puntos.size}</td></tr>`).join('') +
+      (list.length ? `<tr style="font-weight:700;"><td>Total</td><td>${fmt(tot.planta)}</td><td>${fmt(tot.colab)}</td><td>${fmt(tot.planta + tot.colab + tot.otro)}</td><td>${tot.puntos}</td></tr>` : '<tr><td colspan="5" style="padding:18px;color:var(--grey-500);">Sin registros.</td></tr>');
+    const openSet = new Set(Array.from(document.querySelectorAll('#dotPuntos details[open]')).map(d => d.dataset.k));
+    document.getElementById('dotPuntos').innerHTML = list.map(c => {
+      const pts = Array.from(c.puntos.values()).sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+      const k = Utils.normalize(c.ciudad);
+      return `<details data-k="${esc(k)}" ${openSet.has(k) ? 'open' : ''} style="border-bottom:1px solid var(--grey-100);padding:6px 0;">
+        <summary style="cursor:pointer;font-weight:600;">${esc(c.ciudad)} <span style="font-weight:400;color:var(--grey-500);">— ${pts.length} punto${pts.length === 1 ? '' : 's'} · ${fmt(c.planta + c.colab + c.otro)} ${(c.planta + c.colab + c.otro) === 1 ? 'mensajero' : 'mensajeros'}</span></summary>
+        <div style="padding:6px 0 4px 16px;">` + pts.map(pt => `<div class="summary-row"><span>${esc(pt.nombre)} <span style="color:var(--grey-500);">· ${Array.from(pt.modelos).map(m => m === 'FIJO' ? 'Planta' : m === 'COLABORATIVO' ? 'Colaborativo' : esc(m)).join(' + ')}${pt.horarios.size ? ' · ' + esc(Array.from(pt.horarios).join(', ')) : ''}</span></span><b>${fmt(pt.mens)}</b></div>`).join('') + `</div></details>`;
+    }).join('');
+  }
+
   function renderInicioResumen(rows) {
     const total = rows.length;
     const set = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
@@ -3329,7 +3502,9 @@ const MapModule = (() => {
     mapDirty = false;
     const level = els.mapLevelSelect ? els.mapLevelSelect.value : 'ciudad';
     const metric = els.mapMetricSelect ? els.mapMetricSelect.value : 'total';
-    MapModule.render(filteredRows, getFilteredPercapita(), level === 'municipio', metric);
+    const presence = buildPresence(filteredRows);
+    renderPresenciaResumen(presence);
+    MapModule.render(filteredRows, getFilteredPercapita(), level === 'municipio', metric, presence);
   }
 
   /* ================= Alertas ================= */
