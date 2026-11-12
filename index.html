@@ -2444,7 +2444,8 @@ const MapModule = (() => {
     'ENVIGADO': [6.1759, -75.5917], 'SABANETA': [6.1510, -75.6160], 'BELLO': [6.3373, -75.5579], 'LA ESTRELLA': [6.1580, -75.6430]
   };
 
-  function keyFor(name) { return Utils.normalize(name); }
+  const MAP_ALIAS = { 'SANTA MARTHA': 'SANTA MARTA', 'SANTAMARTA': 'SANTA MARTA', 'RIO NEGRO': 'RIONEGRO', 'BOGOTA DC': 'BOGOTA', 'BOGOTA D.C.': 'BOGOTA' };
+  function keyFor(name) { const k = Utils.normalize(name); return MAP_ALIAS[k] || k; }
 
   function queueGeocode(name, onResolved) {
     const key = keyFor(name);
@@ -2592,24 +2593,22 @@ const MapModule = (() => {
         marker.on('click', () => onMarkerClick(d.place, useMunicipio ? 'municipio' : 'ciudad'));
         marker.addTo(markersLayer);
       };
-      if (d.centroid) drawMarker(d.centroid);
-      else {
-        const known = KNOWN_COORDS[keyFor(d.place)] || geocodeCache[keyFor(d.place)];
-        if (known) drawMarker(known);
-        else queueGeocode(d.place, (c) => drawMarker(c));
-      }
+      const known = KNOWN_COORDS[keyFor(d.place)] || geocodeCache[keyFor(d.place)];
+      if (known) drawMarker(known);
+      else if (d.centroid) drawMarker(d.centroid);
+      else queueGeocode(d.place, (c) => drawMarker(c));
     });
   }
 
   function renderPresence(list) {
-    lastPresencePts = list.map(d => d.centroid || KNOWN_COORDS[keyFor(d.name)] || geocodeCache[keyFor(d.name)]).filter(Boolean);
+    lastPresencePts = list.map(d => KNOWN_COORDS[keyFor(d.name)] || geocodeCache[keyFor(d.name)] || d.centroid).filter(Boolean);
     list.forEach(d => {
       const draw = (c) => {
         const mens = (d.planta || 0) + (d.colab || 0);
         const cls = 'pin-presencia' + (d.colab > 0 ? ' colab' : '') + (mens === 0 ? ' solo-serv' : '');
-        const txt = mens === 0 ? '•' : (Math.round(mens) === mens ? String(mens) : mens.toFixed(1).replace('.', ','));
+        const txt = mens === 0 ? '•' : String(Math.round(mens));
         const icon = L.divIcon({ className: '', html: `<div class="${cls}">${txt}</div>`, iconSize: [26, 26], iconAnchor: [13, 13] });
-        const f = (n) => (Math.round(n * 10) / 10).toString().replace('.', ',');
+        const f = (n) => String(Math.round(n));
         const m = L.marker(c, { icon, zIndexOffset: 500, title: d.name });
         m.bindTooltip(d.name, { direction: 'top', offset: [0, -12] });
         m.bindPopup(`<div class="map-popup"><h4>${d.name}</h4><table>
@@ -2619,11 +2618,10 @@ const MapModule = (() => {
           <tr><td>Servicios (filtros actuales)</td><td><b>${Utils.formatNumber(d.servicios || 0)}</b></td></tr></table></div>`);
         m.addTo(presenceLayer);
       };
-      if (d.centroid) draw(d.centroid);
-      else {
-        const known = KNOWN_COORDS[keyFor(d.name)] || geocodeCache[keyFor(d.name)];
-        if (known) draw(known); else queueGeocode(d.name, (c) => draw(c));
-      }
+      const known = KNOWN_COORDS[keyFor(d.name)] || geocodeCache[keyFor(d.name)];
+      if (known) draw(known);
+      else if (d.centroid) draw(d.centroid);
+      else queueGeocode(d.name, (c) => draw(c));
     });
   }
 
@@ -3215,13 +3213,16 @@ const MapModule = (() => {
     const corte = meses.length ? Math.max.apply(null, meses) : null;
     return corte ? rows.filter(r => r.mes === corte) : rows;
   }
+  /* Mensajeros en números enteros: la hoja trae fracciones cuando un mensajero se reparte entre varios puntos;
+     se suma por ciudad y modelo y se redondea (mínimo 1 si hay presencia). */
+  const whole = (v) => v > 0 ? Math.max(1, Math.round(v)) : 0;
   const CITY_ALIAS = { 'SANTA MARTHA': 'SANTA MARTA', 'SANTAMARTA': 'SANTA MARTA', 'RIO NEGRO': 'RIONEGRO', 'BOGOTA DC': 'BOGOTA', 'BOGOTA D.C.': 'BOGOTA' };
   const canonCity = (n) => { const k = Utils.normalize(n); return CITY_ALIAS[k] || k; };
   const titleCase = (t) => t.toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase()).replace(/\bDe\b/g, 'de');
   /* Presencia por ciudad: unión de ciudades con mensajeros (Percápita, último mes) y ciudades con servicios (hojas, filtros actuales). */
   function buildPresence(rows) {
     const m = new Map();
-    const get = (k, name) => { if (!m.has(k)) m.set(k, { key: k, name: titleCase(CITY_ALIAS[Utils.normalize(name)] || Utils.normalize(name)), planta: 0, colab: 0, puntos: new Set(), servicios: 0, lat: 0, lng: 0, n: 0 }); return m.get(k); };
+    const get = (k, name) => { if (!m.has(k)) m.set(k, { key: k, name: titleCase(CITY_ALIAS[Utils.normalize(name)] || Utils.normalize(name)), planta: 0, colab: 0, puntos: new Set(), servicios: 0, lats: [], lngs: [], n: 0 }); return m.get(k); };
     dotacionRows().forEach(r => {
       const k = canonCity(r.ciudad); if (!k || k === 'SIN DATO' || k === 'NACIONAL') return;
       const d = get(k, r.ciudad);
@@ -3232,14 +3233,15 @@ const MapModule = (() => {
       if (!r.ciudad || r.ciudad === 'Sin dato') return;
       const k = canonCity(r.ciudad); const d = get(k, r.ciudad);
       d.servicios++;
-      if (r.lat !== null && r.lng !== null) { d.lat += r.lat; d.lng += r.lng; d.n++; }
+      if (r.lat !== null && r.lng !== null) { d.lats.push(r.lat); d.lngs.push(r.lng); d.n++; }
     });
-    return Array.from(m.values()).map(d => ({ name: d.name, planta: d.planta, colab: d.colab, puntos: d.puntos.size, servicios: d.servicios, centroid: d.n ? [d.lat / d.n, d.lng / d.n] : null }))
+    const med = (a) => { const b = a.slice().sort((x, y) => x - y); return b[Math.floor(b.length / 2)]; };
+    return Array.from(m.values()).map(d => ({ name: d.name, planta: whole(d.planta), colab: whole(d.colab), puntos: d.puntos.size, servicios: d.servicios, centroid: d.n ? [med(d.lats), med(d.lngs)] : null }))
       .sort((a, b) => (b.planta + b.colab) - (a.planta + a.colab) || b.servicios - a.servicios);
   }
   function renderPresenciaResumen(list) {
     const box = document.getElementById('presenciaResumen'); if (!box) return;
-    const f = (n) => (Math.round(n * 10) / 10).toString().replace('.', ',');
+    const f = (n) => String(Math.round(n));
     const conMens = list.filter(d => d.planta + d.colab > 0).length;
     const planta = list.reduce((t, d) => t + d.planta, 0), colab = list.reduce((t, d) => t + d.colab, 0), puntos = list.reduce((t, d) => t + d.puntos, 0);
     box.innerHTML = [
@@ -3256,16 +3258,17 @@ const MapModule = (() => {
     if (!kbox) return;
     let rows = dotacionRows();
     const esc = (t) => String(t === null || t === undefined ? '' : t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-    const fmt = (n) => (Math.round(n * 10) / 10).toString().replace('.', ',');
+    const fmt = (n) => String(Math.round(n));
+    const ptTxt = (n) => Math.abs(n - Math.round(n)) < 0.005 ? String(Math.round(n)) : 'comp. ' + (Math.round(n * 100) / 100).toString().replace('.', ',');
     const corte = rows.length ? rows[0].mes : null;
     document.getElementById('dotCorte').textContent = rows.length
-      ? `Fuente: hoja Percápita${corte ? ' · corte ' + Utils.MESES[corte - 1] : ''} · mensajeros en equivalente a tiempo completo (una fila con 0,5 cuenta medio mensajero)`
+      ? `Fuente: hoja Percápita${corte ? ' · corte ' + Utils.MESES[corte - 1] : ''} · mensajeros en números enteros por ciudad y modelo (cuando un mensajero se reparte entre varios puntos, se suma la fracción y se redondea)`
       : 'Sin datos en la hoja Percápita para los filtros seleccionados.';
     const tipo = (r) => r.modelo === 'FIJO' ? 'planta' : r.modelo === 'COLABORATIVO' ? 'colab' : 'otro';
     const ciudades = new Map();
     rows.forEach(r => {
-      const ck = Utils.normalize(r.ciudad); if (!ck || ck === 'SIN DATO') return;
-      if (!ciudades.has(ck)) ciudades.set(ck, { ciudad: r.ciudad, planta: 0, colab: 0, otro: 0, puntos: new Map() });
+      const ck = canonCity(r.ciudad); if (!ck || ck === 'SIN DATO') return;
+      if (!ciudades.has(ck)) ciudades.set(ck, { ciudad: titleCase(CITY_ALIAS[Utils.normalize(r.ciudad)] || Utils.normalize(r.ciudad)), planta: 0, colab: 0, otro: 0, puntos: new Map() });
       const c = ciudades.get(ck);
       c[tipo(r)] += r.mensajeros || 0;
       const pk = Utils.normalize(r.puntoVenta);
@@ -3273,6 +3276,7 @@ const MapModule = (() => {
       const pt = c.puntos.get(pk);
       pt.mens += r.mensajeros || 0; pt.modelos.add(r.modelo); if (r.horario) pt.horarios.add(r.horario);
     });
+    ciudades.forEach(c => { c.planta = whole(c.planta); c.colab = whole(c.colab); c.otro = whole(c.otro); });
     const list = Array.from(ciudades.values()).sort((a, b) => (b.planta + b.colab + b.otro) - (a.planta + a.colab + a.otro));
     const tot = list.reduce((t, c) => ({ planta: t.planta + c.planta, colab: t.colab + c.colab, otro: t.otro + c.otro, puntos: t.puntos + c.puntos.size }), { planta: 0, colab: 0, otro: 0, puntos: 0 });
     const nPuntosPlanta = new Set(), nPuntosColab = new Set();
@@ -3280,7 +3284,7 @@ const MapModule = (() => {
     kbox.innerHTML = [
       kpiCard('Mensajeros de planta', fmt(tot.planta), null, true, null, '🛵', `modelo FIJO · ${nPuntosPlanta.size} puntos`),
       kpiCard('Mensajeros colaborativos', fmt(tot.colab), null, true, null, '🤝', `modelo COLABORATIVO · ${nPuntosColab.size} puntos`),
-      kpiCard('Total mensajeros', fmt(tot.planta + tot.colab + tot.otro), null, true, null, '👥', 'equivalente a tiempo completo'),
+      kpiCard('Total mensajeros', fmt(tot.planta + tot.colab + tot.otro), null, true, null, '👥', 'suma de ciudades (enteros)'),
       kpiCard('Ciudades', Utils.formatNumber(list.length), null, true, null, '🌎', 'con operación'),
       kpiCard('Puntos atendidos', Utils.formatNumber(tot.puntos), null, true, null, '🏪', 'puntos de venta distintos')
     ].join('');
@@ -3293,7 +3297,7 @@ const MapModule = (() => {
       const k = Utils.normalize(c.ciudad);
       return `<details data-k="${esc(k)}" ${openSet.has(k) ? 'open' : ''} style="border-bottom:1px solid var(--grey-100);padding:6px 0;">
         <summary style="cursor:pointer;font-weight:600;">${esc(c.ciudad)} <span style="font-weight:400;color:var(--grey-500);">— ${pts.length} punto${pts.length === 1 ? '' : 's'} · ${fmt(c.planta + c.colab + c.otro)} ${(c.planta + c.colab + c.otro) === 1 ? 'mensajero' : 'mensajeros'}</span></summary>
-        <div style="padding:6px 0 4px 16px;">` + pts.map(pt => `<div class="summary-row"><span>${esc(pt.nombre)} <span style="color:var(--grey-500);">· ${Array.from(pt.modelos).map(m => m === 'FIJO' ? 'Planta' : m === 'COLABORATIVO' ? 'Colaborativo' : esc(m)).join(' + ')}${pt.horarios.size ? ' · ' + esc(Array.from(pt.horarios).join(', ')) : ''}</span></span><b>${fmt(pt.mens)}</b></div>`).join('') + `</div></details>`;
+        <div style="padding:6px 0 4px 16px;">` + pts.map(pt => `<div class="summary-row"><span>${esc(pt.nombre)} <span style="color:var(--grey-500);">· ${Array.from(pt.modelos).map(m => m === 'FIJO' ? 'Planta' : m === 'COLABORATIVO' ? 'Colaborativo' : esc(m)).join(' + ')}${pt.horarios.size ? ' · ' + esc(Array.from(pt.horarios).join(', ')) : ''}</span></span><b>${ptTxt(pt.mens)}</b></div>`).join('') + `</div></details>`;
     }).join('');
   }
 
